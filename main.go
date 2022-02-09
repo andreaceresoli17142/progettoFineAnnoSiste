@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
 
@@ -17,6 +18,8 @@ var clientSecret string = ""
 var redirectUri string = "https://8080-andreaceresoli1-progetto-sqaocv6g7zy.ws-eu30.gitpod.io/oauth"
 var authSuccUri string = "https://8080-andreaceresoli1-progetto-sqaocv6g7zy.ws-eu30.gitpod.io/getact"
 
+var stateMap map[string]bool
+
 type OauthResp struct {
 	AccessToken string `json:"access_token"`
 }
@@ -25,8 +28,27 @@ type UsrData struct {
 	Email string `json:"email"`
 }
 
+func RandomString(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	s := make([]rune, n)
+	for i := range s {
+		s[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(s)
+}
+
 func homePage(w http.ResponseWriter, r *http.Request) {
 	state := "stringaBella"
+	/*state := RandomString(15)
+	for true {
+
+		state := RandomString(15)
+		if _, keyExists := stateMap[state]; keyExists {
+			//
+			break
+		}
+	}*/
 	fmt.Println("endpoint hit: home")
 	fmt.Fprintf(w, "<a href=\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"> login with paleoId </a> ", clientId, state, redirectUri)
 }
@@ -72,8 +94,6 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//fmt.Println("auth token:", respData)
-
 	url := "https://id.paleo.bg.it/api/v2/user"
 
 	req, err = http.NewRequest("GET", url, nil)
@@ -107,13 +127,6 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	email := resp1Data.Email
 
 	privateArea(w, r, email)
-
-	/*fmt.Println(res)
-	fmt.Println(string(body))*/
-
-	//fmt.Println(email)
-
-	//fmt.Fprintf(w, "<a href=\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"> login with paleoId </a> ", clientId, state, redirectUri)
 }
 
 func privateArea(w http.ResponseWriter, r *http.Request, email string) {
