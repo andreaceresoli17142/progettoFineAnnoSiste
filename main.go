@@ -1,21 +1,29 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
+	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/mingrammer/cfmt"
 )
 
 var clientId string = ""
 var clientSecret string = ""
 var redirectUri string = "https://8080-andreaceresoli1-progetto-sqaocv6g7zy.ws-eu30.gitpod.io/oauth"
 var authSuccUri string = "https://8080-andreaceresoli1-progetto-sqaocv6g7zy.ws-eu30.gitpod.io/getact"
+
+type OauthResp struct {
+	AccessToken string `json:"access_token"`
+}
+
+type UsrData struct {
+	Email string `json:"email"`
+}
 
 func homePage(w http.ResponseWriter, r *http.Request) {
 	state := "stringaBella"
@@ -31,46 +39,91 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	if state == "stringaBella" {
 		//fai cose
 	}
-	//fmt.Printf("state: %v, code: %v", state, code)
 
-	body := url.Values{
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"redirect_uri":  {authSuccUri},
-		"client_id":     {clientId},
-		"client_secret": {clientSecret},
-	}
+	payload := strings.NewReader(fmt.Sprintf(`{"grant_type":"%s" , "code":"%s", "redirect_uri":"%s", "client_id":"%s", "client_secret":"%s" }`, "authorization_code", code, redirectUri, clientId, clientSecret))
 
-	jsonValue, _ := json.Marshal(body)
+	req, err := http.NewRequest("POST", "https://id.paleo.bg.it/oauth/token", payload)
 
-	fmt.Print(jsonValue)
+	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.Post("https://id.paleo.bg.it/oauth/token", "application/json", bytes.NewBuffer(jsonValue))
-	//resp, err := http.PostForm("https://id.paleo.bg.it/oauth/token", body)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
+	defer resp.Body.Close()
 
 	if err != nil {
-		log.Fatal(err)
+		cfmt.Errorf("Error: %s", err.Error())
+		return
 	}
 
-	var res map[string]string
+	body, err := ioutil.ReadAll(resp.Body)
 
-	json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		cfmt.Errorf("Error: %s", err.Error())
+		return
+	}
 
-	fmt.Println(res)
+	// now handle the response
+	var respData OauthResp
+	err = json.Unmarshal(body, &respData)
+
+	if err != nil {
+		cfmt.Errorf("Error: %s", err.Error())
+		return
+	}
+
+	//fmt.Println("auth token:", respData)
+
+	url := "https://id.paleo.bg.it/api/v2/user"
+
+	req, err = http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		cfmt.Errorf("Error: %s", err.Error())
+		return
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+respData.AccessToken)
+
+	res, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		cfmt.Errorf("Error: %s", err.Error())
+		return
+	}
+
+	defer res.Body.Close()
+	body, err = ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		cfmt.Errorf("Error: %s", err.Error())
+		return
+	}
+
+	var resp1Data UsrData
+	err = json.Unmarshal(body, &resp1Data)
+
+	email := resp1Data.Email
+
+	privateArea(w, r, email)
+
+	/*fmt.Println(res)
+	fmt.Println(string(body))*/
+
+	//fmt.Println(email)
 
 	//fmt.Fprintf(w, "<a href=\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"> login with paleoId </a> ", clientId, state, redirectUri)
 }
 
-func getAccesToken(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	fmt.Println(query)
+func privateArea(w http.ResponseWriter, r *http.Request, email string) {
+	fmt.Fprint(w, "Hi ", email, " you are in your private area!")
 }
 
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
-	myRouter.HandleFunc("/getact", getAccesToken) //.Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
 }
