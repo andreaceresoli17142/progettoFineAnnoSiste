@@ -30,7 +30,7 @@ CREATE TABLE Conversations (
 
 CREATE TABLE LoginState (
     idstring VARCHAR(15) NOT NULL,
-    PRIMARY KEY ( id, participantId )
+    PRIMARY KEY ( idstring )
 );
 
 

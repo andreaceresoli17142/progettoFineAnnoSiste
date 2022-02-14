@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"regexp"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -18,10 +20,18 @@ import (
 )
 
 const hostSite = "https://8080-andreaceresoli1-progetto-sqaocv6g7zy.ws-eu31.gitpod.io/"
+const sqlServerIp = "172.18.0.2:3306"
 
 var clientId string = ""
 var clientSecret string = ""
 var redirectUri string = hostSite + "oauth"
+
+func validate(input string) string {
+	// remove " ' < > / \ to validate user input
+	re := regexp.MustCompile(`[\\\/\<\>\"\']*`)
+
+	return re.ReplaceAllString(input, "")
+}
 
 func RandomString(n int) string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -127,51 +137,87 @@ func privateArea(w http.ResponseWriter, r *http.Request, email string) {
 	fmt.Fprint(w, "Hi ", email, " you are in your private area!")
 }
 
+type UsrLoginData struct {
+	Salt  int    `db:"salt"`
+	PHash string `db:"pHash"`
+}
+
+func login(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username := validate(vars["username"])
+	password := validate(vars["password"])
+
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+
+	if err != nil {
+
+	}
+
+	defer db.Close()
+	var loginData UsrLoginData
+	q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE username = \"%s\";", username)
+	err = db.QueryRow(q).Scan(&loginData.Salt, &loginData.PHash)
+
+	if err == sql.ErrNoRows {
+		fmt.Fprint(w, "{ 400:\"bad_request\", error:\"username does not exist\" }")
+		return
+	}
+
+	if err != nil {
+		fmt.Fprintf(w, "{ 300:\"backend_error\", error:\"%v\" }", err)
+		return
+	}
+
+	sum := sha256.Sum256([]byte(password))
+
+	if string(sum[:]) == loginData.PHash {
+
+		fmt.Fprintf(w, "{ 200:\"login_successful\", access_token:\"placeholder\",  refresh_token:\"placeholder\" }")
+		return
+	}
+
+	fmt.Fprintf(w, "{ 400:\"bad_request\", error:\"wrong username or password\"  }")
+}
+
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
+	myRouter.HandleFunc("/login/{username}/{password}", login)
 	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
 }
 
 type UserData struct {
-	id           int
-	username     string
-	email        string
-	date_of_join string
-	salt         int
-	pHash        string
+	Id           int
+	Username     string
+	Email        string
+	Date_of_join string
+	Salt         int
+	PHash        string
 }
 
-func slqTest() {
+// func slqTest() {
 
-	// Open up our database connection.
-	// I've set up a database on my local machine using phpmyadmin.
-	// The database is called testDb
-	db, err := sql.Open("mysql", "root:root@tcp(172.18.0.3:3306)/instanTex_db")
+// 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
 
-	// if there is an error opening the connection, handle it
-	if err != nil {
-		panic(err.Error())
-	}
+// 	if err != nil {
+// 		panic(err.Error())
+// 	}
 
-	// perform a db.Query insert
-
-	// if there is an error inserting, handle it
-	defer db.Close()
-	var str string
-	q := "SELECT * FROM Users;"
-	err = db.QueryRow(q).Scan(&str)
-	fmt.Println(str)
-	// database object has  a method Close,
-	// which is used to free the resource.
-	// Free the resource when the function
-}
+// 	defer db.Close()
+// 	var ret UserData
+// 	q := "SELECT * FROM Users;"
+// 	err = db.QueryRow(q).Scan(&ret.Id, &ret.Username, &ret.Email, &ret.Date_of_join, &ret.Salt, &ret.PHash)
+// 	if err != nil {
+// 		panic(err.Error())
+// 	}
+// 	fmt.Println(ret)
+// }
 
 func main() {
 
-	slqTest()
+	// slqTest()
 
 	content, err := ioutil.ReadFile("./oauthTokens.json")
 	if err != nil {
