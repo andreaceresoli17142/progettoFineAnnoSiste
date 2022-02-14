@@ -20,7 +20,7 @@ import (
 )
 
 const hostSite = "https://8080-andreaceresoli1-progetto-sqaocv6g7zy.ws-eu31.gitpod.io/"
-const sqlServerIp = "172.18.0.2:3306"
+const sqlServerIp = "172.18.0.1:3306"
 
 var clientId string = ""
 var clientSecret string = ""
@@ -183,7 +183,7 @@ func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/login/{username}/{password}", login)
-	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
+	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
 }
@@ -218,6 +218,7 @@ type UserData struct {
 func main() {
 
 	// slqTest()
+	// time.Sleep(3 * time.Second)
 
 	content, err := ioutil.ReadFile("./oauthTokens.json")
 	if err != nil {
