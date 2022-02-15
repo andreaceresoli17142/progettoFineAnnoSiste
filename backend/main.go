@@ -1,15 +1,15 @@
 package main
 
 import (
-	"crypto/sha256"
-	"database/sql"
+	// "crypto/sha256"
+	// "database/sql"
+	// "regexp"
+	// "math/rand"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
-	"regexp"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -25,23 +25,6 @@ const sqlServerIp = "172.18.0.1:3306"
 var clientId string = ""
 var clientSecret string = ""
 var redirectUri string = hostSite + "oauth"
-
-func validate(input string) string {
-	// remove " ' < > / \ to validate user input
-	re := regexp.MustCompile(`[\\\/\<\>\"\']*`)
-
-	return re.ReplaceAllString(input, "")
-}
-
-func RandomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-	s := make([]rune, n)
-	for i := range s {
-		s[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(s)
-}
 
 type OauthResp struct {
 	AccessToken string `json:"access_token"`
@@ -137,46 +120,13 @@ func privateArea(w http.ResponseWriter, r *http.Request, email string) {
 	fmt.Fprint(w, "Hi ", email, " you are in your private area!")
 }
 
-type UsrLoginData struct {
-	Salt  int    `db:"salt"`
-	PHash string `db:"pHash"`
-}
-
-func login(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	username := validate(vars["username"])
-	password := validate(vars["password"])
-
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
-
-	if err != nil {
-
-	}
-
-	defer db.Close()
-	var loginData UsrLoginData
-	q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE username = \"%s\";", username)
-	err = db.QueryRow(q).Scan(&loginData.Salt, &loginData.PHash)
-
-	if err == sql.ErrNoRows {
-		fmt.Fprint(w, "{ 400:\"bad_request\", error:\"username does not exist\" }")
-		return
-	}
-
-	if err != nil {
-		fmt.Fprintf(w, "{ 300:\"backend_error\", error:\"%v\" }", err)
-		return
-	}
-
-	sum := sha256.Sum256([]byte(password))
-
-	if string(sum[:]) == loginData.PHash {
-
-		fmt.Fprintf(w, "{ 200:\"login_successful\", access_token:\"placeholder\",  refresh_token:\"placeholder\" }")
-		return
-	}
-
-	fmt.Fprintf(w, "{ 400:\"bad_request\", error:\"wrong username or password\"  }")
+type UserData struct {
+	Id           int
+	Username     string
+	Email        string
+	Date_of_join string
+	Salt         int
+	PHash        string
 }
 
 func handleRequests() {
@@ -188,37 +138,7 @@ func handleRequests() {
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
 }
 
-type UserData struct {
-	Id           int
-	Username     string
-	Email        string
-	Date_of_join string
-	Salt         int
-	PHash        string
-}
-
-// func slqTest() {
-
-// 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
-
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-
-// 	defer db.Close()
-// 	var ret UserData
-// 	q := "SELECT * FROM Users;"
-// 	err = db.QueryRow(q).Scan(&ret.Id, &ret.Username, &ret.Email, &ret.Date_of_join, &ret.Salt, &ret.PHash)
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-// 	fmt.Println(ret)
-// }
-
 func main() {
-
-	// slqTest()
-	// time.Sleep(3 * time.Second)
 
 	content, err := ioutil.ReadFile("./oauthTokens.json")
 	if err != nil {

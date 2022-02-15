@@ -28,9 +28,11 @@ CREATE TABLE Conversations (
     PRIMARY KEY ( id, participantId )
 );
 
-CREATE TABLE LoginState (
-    idstring VARCHAR(15) NOT NULL,
-    PRIMARY KEY ( idstring )
+CREATE TABLE Token (
+    userid INT NOT NULL,
+    accessToken VARCHAR(64) NOT NULL,
+    accessToken VARCHAR(64) NOT NULL,
+    PRIMARY KEY ( userid )
 );
 
 
