@@ -24,3 +24,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - 8080:8080
+  frontend:
+    container_name: frontend
+    hostname: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 80:80

@@ -31,8 +31,15 @@ CREATE TABLE Conversations (
 CREATE TABLE Token (
     userid INT NOT NULL,
     accessToken VARCHAR(64) NOT NULL,
-    accessToken VARCHAR(64) NOT NULL,
+    expireTime INT NOT NULL,
+    refreshToken VARCHAR(64) NOT NULL,
     PRIMARY KEY ( userid )
+);
+
+
+CREATE TABLE LoginState (
+    idstring VARCHAR(15) NOT NULL,
+    PRIMARY KEY ( idstring )
 );
 
 
