@@ -3,6 +3,8 @@ package main
 import (
 	// "crypto/sha256"
 	"database/sql"
+	"strings"
+
 	// "regexp"
 	// "math/rand"
 	"encoding/json"
@@ -13,10 +15,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"strings"
-
 	"github.com/gorilla/mux"
-	"github.com/mingrammer/cfmt"
 )
 
 const hostSite = "https://localhost:8080/"
@@ -61,6 +60,7 @@ func findState(state string) (string, error) {
 	}
 
 	defer db.Close()
+
 	var str string
 	q := fmt.Sprintf("SELECT * FROM LoginState WHERE idstring = \"%s\";", state)
 	err = db.QueryRow(q).Scan(&str)
@@ -102,7 +102,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	ret, err := findState(state)
 
 	if err != nil {
-		cfmt.Error(err)
+		fmt.Println(err)
 		return
 	}
 
@@ -113,7 +113,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	err = remState(state)
 
 	if err != nil {
-		cfmt.Error(err)
+		fmt.Println(err)
 		return
 	}
 
@@ -129,14 +129,14 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &respData)
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
@@ -154,7 +154,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	req, err = http.NewRequest("GET", url, nil)
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
@@ -164,7 +164,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	res, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
@@ -172,26 +172,31 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	body, err = ioutil.ReadAll(res.Body)
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
 	var resp1Data UsrData
 	err = json.Unmarshal(body, &resp1Data)
 
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	email := resp1Data.Email
 
 	userId, err := getUserId(email)
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
 	username, email, date_of_join, err := getUserData(userId)
 
 	if err != nil {
-		cfmt.Errorf("Error: %s", err.Error())
+		fmt.Println(err)
 		return
 	}
 
@@ -205,11 +210,11 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 
 func getOauthLink(w http.ResponseWriter, r *http.Request) {
 	var state string
-	for true {
+	for {
 		state = RandomString(15)
 		ret, err := findState(state)
 		if err != nil {
-			cfmt.Error(err)
+			fmt.Println(err)
 			return
 		}
 		if ret == "" {
@@ -218,7 +223,7 @@ func getOauthLink(w http.ResponseWriter, r *http.Request) {
 	}
 	err := addState(state)
 	if err != nil {
-		cfmt.Error(err)
+		fmt.Println(err)
 		return
 	}
 	fmt.Println("endpoint hit: home")
@@ -226,12 +231,14 @@ func getOauthLink(w http.ResponseWriter, r *http.Request) {
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
+	// fmt.Fprintf(w, "helo")
 	var state string
-	for true {
+	for {
 		state = RandomString(15)
 		ret, err := findState(state)
 		if err != nil {
-			cfmt.Error(err)
+			fmt.Println(err)
+			fmt.Println("helo")
 			return
 		}
 		if ret == "" {
@@ -240,7 +247,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	}
 	err := addState(state)
 	if err != nil {
-		cfmt.Error(err)
+		fmt.Println(err)
 		return
 	}
 	fmt.Println("endpoint hit: home")
