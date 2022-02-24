@@ -168,5 +168,3 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"login succesfull\" }")
 }
-
-// func useRefreshToken ()

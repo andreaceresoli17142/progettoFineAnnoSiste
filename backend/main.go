@@ -19,8 +19,8 @@ import (
 	"github.com/mingrammer/cfmt"
 )
 
-const hostSite = "http://localhost:8080/"
-const sqlServerIp = "maria:3306"
+const hostSite = "https://localhost:8080/"
+const sqlServerIp = "172.18.0.1:3306"
 
 var clientId string = ""
 var clientSecret string = ""
@@ -200,7 +200,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "private area: \n\tusername: %v \n\temail: %v \n\tdate of join: %s", username, email, date_of_join)
+	fmt.Fprintf(w, "private area: \n\tusername: %s \n\temail: %s \n\tdate of join: %s", username, email, date_of_join)
 }
 
 func getOauthLink(w http.ResponseWriter, r *http.Request) {
