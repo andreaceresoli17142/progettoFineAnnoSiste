@@ -2,13 +2,13 @@ FROM golang:alpine
  
 RUN mkdir /app
  
-COPY go.mod go.sum /app
+COPY go.mod go.sum /app/
  
 WORKDIR /app
 
 RUN go mod download
 
-COPY *.go *.json /app
+COPY *.go *.json /app/
 
 RUN go build -o backend *.go 
 

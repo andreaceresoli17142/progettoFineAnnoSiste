@@ -19,8 +19,8 @@ import (
 	"github.com/mingrammer/cfmt"
 )
 
-const hostSite = "https://8080-andreaceresoli1-progetto-sqaocv6g7zy.ws-eu33.gitpod.io/"
-const sqlServerIp = "172.18.0.1:3306"
+const hostSite = "http://localhost:8080/"
+const sqlServerIp = "maria:3306"
 
 var clientId string = ""
 var clientSecret string = ""
@@ -201,6 +201,28 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "private area: \n\tusername: %v \n\temail: %v \n\tdate of join: %s", username, email, date_of_join)
+}
+
+func getOauthLink(w http.ResponseWriter, r *http.Request) {
+	var state string
+	for true {
+		state = RandomString(15)
+		ret, err := findState(state)
+		if err != nil {
+			cfmt.Error(err)
+			return
+		}
+		if ret == "" {
+			break
+		}
+	}
+	err := addState(state)
+	if err != nil {
+		cfmt.Error(err)
+		return
+	}
+	fmt.Println("endpoint hit: home")
+	fmt.Fprintf(w, "{resp_code:\"200\"  link:\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"}", clientId, state, redirectUri)
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
