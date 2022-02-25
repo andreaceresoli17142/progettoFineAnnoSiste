@@ -18,8 +18,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const hostSite = "https://localhost:8080/"
-const sqlServerIp = "172.18.0.1:3306"
+const hostSite = "http://localhost:8080/"
+const sqlServerIp = "172.18.0.2:3306"
 
 var clientId string = ""
 var clientSecret string = ""
@@ -56,6 +56,7 @@ func findState(state string) (string, error) {
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
 
 	if err != nil {
+		log.Println("aaa")
 		return "false", err
 	}
 
@@ -85,9 +86,9 @@ func remState(state string) error {
 
 	defer db.Close()
 
-	q := fmt.Sprintf("DELETE FROM LoginState WHERE idstring = \"%s\";", state)
+	//q := fmt.Sprintf("DELETE FROM LoginState WHERE idstring = \"%s\";", state)
 
-	_, err = db.Exec(q)
+	_, err = db.Exec("DELETE FROM LoginState WHERE idstring = ?", state)
 	if err != nil {
 		return err
 	}
@@ -238,7 +239,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 		ret, err := findState(state)
 		if err != nil {
 			fmt.Println(err)
-			fmt.Println("helo")
+		//	fmt.Println("helo")
 			return
 		}
 		if ret == "" {
@@ -267,11 +268,11 @@ func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
-	myRouter.HandleFunc("/login/{username}/{password}", login).Methods("POST")
-	myRouter.HandleFunc("/tokentest/{access_token}", accessTokenTest)
-	myRouter.HandleFunc("/refreshtoken/{refresh_token}", refreshTokenReq).Methods("POST")
-	myRouter.HandleFunc("/getusrdata/{access_token}", getUserDataReq).Methods("GET")
-	myRouter.HandleFunc("/signin/{username}/{email}/{password}", signIn).Methods("POST")
+	myRouter.HandleFunc("/login", login).Methods("POST")
+	myRouter.HandleFunc("/tokentest", accessTokenTest)
+	myRouter.HandleFunc("/refreshtoken", refreshTokenReq).Methods("POST")
+	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET")
+	myRouter.HandleFunc("/signin", signIn).Methods("POST")
 
 	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 

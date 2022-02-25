@@ -10,20 +10,25 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/gorilla/mux"
+	// "github.com/gorilla/mux"
 )
 
-type UsrLoginData struct {
-	Email string `db:"email"`
-	Salt  int    `db:"salt"`
-	PHash string `db:"pHash"`
-}
+// type UsrLoginData struct {
+// 	Email string `db:"email"`
+// 	Salt  int    `db:"salt"`
+// 	PHash string `db:"pHash"`
+// }
 
 func login(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: login")
-	vars := mux.Vars(r)
-	username := validate(vars["username"])
-	password := validate(vars["password"])
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	username := validate(r.PostForm.Get("username"))
+	password := validate(r.PostForm.Get("password"))
 
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
 
@@ -33,7 +38,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer db.Close()
-	var loginData UsrLoginData
+	var loginData UserData
 	q := fmt.Sprintf("SELECT email, salt, pHash FROM Users WHERE username = \"%s\";", username)
 	err = db.QueryRow(q).Scan(&loginData.Email, &loginData.Salt, &loginData.PHash)
 
@@ -76,8 +81,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 func accessTokenTest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: access token test")
-	vars := mux.Vars(r)
-	act := validate(vars["access_token"])
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	act := validate(r.PostForm.Get("access_token"))
 
 	ret, err := accessTokenValid(act)
 
@@ -96,8 +106,13 @@ func accessTokenTest(w http.ResponseWriter, r *http.Request) {
 
 func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: use refresh token")
-	vars := mux.Vars(r)
-	reft := validate(vars["refresh_token"])
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	reft := validate(r.PostForm.Get("refresh_token"))
 
 	act, expt, rft, err := useRefreshToken(reft)
 
@@ -115,10 +130,42 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid refresh token\" }")
 }
 
+// func changeUserData(w http.ResponseWriter, r *http.Request){
+// 	fmt.Println("endpoint hit: change user data")
+
+// 	err := r.ParseForm()
+
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	act := validate(r.PostForm.Get("access_token"))
+// 	username := validate(r.PostForm.Get("new_username"))
+// 	email := validate(r.PostForm.Get("new_emal"))
+// 	new_pw := validate(r.PostForm.Get("new_password"))
+// 	old_pw := validate(r.PostForm.Get("password"))
+
+// 	usrId, err := getUserIdFromAccessToken(act)
+
+// 	if err != nil {
+// 		fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+// 		return
+// 	}
+
+// 	if usrId == -1 {
+// 		fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
+// 		return
+// 	}
+// }
+
 func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get user data")
-	vars := mux.Vars(r)
-	act := validate(vars["access_token"])
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	act := validate(r.PostForm.Get("access_token"))
 
 	usrId, err := getUserIdFromAccessToken(act)
 
@@ -140,7 +187,7 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if username == "" {
-		fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
+		fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid wrong id\"  }")
 		return
 	}
 
@@ -149,10 +196,15 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 
 func signIn(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: sign in")
-	vars := mux.Vars(r)
-	username := validate(vars["username"])
-	email := validate(vars["email"])
-	password := validate(vars["password"])
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	username := validate(r.PostForm.Get("username"))
+	email := validate(r.PostForm.Get("email"))
+	password := validate(r.PostForm.Get("password"))
 
 	resp, err := addUser(username, email, password)
 
@@ -166,5 +218,5 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"login succesfull\" }")
+	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
 }
