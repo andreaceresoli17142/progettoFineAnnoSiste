@@ -3,7 +3,7 @@ services:
   maria:
     container_name: maria
     restart: always
-    image: mariadb:latest
+    image: mariadb:5.0
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: cere
@@ -32,3 +32,7 @@ services:
     #  dockerfile: Dockerfile
     #ports:
     #  - 80:80
+# 1. "/etc/mysql/mariadb.cnf" (this file) to set global defaults,
+# 2. "/etc/mysql/conf.d/*.cnf" to set global options.
+# 3. "" to set MariaDB-only options.
+# 4. "~/.my.cnf" to set user-specific options.

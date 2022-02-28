@@ -29,11 +29,20 @@ type OauthResp struct {
 	AccessToken string `json:"access_token"`
 }
 
+type UserData struct {
+	Id           int    `db:"id"`
+	Username     string `db:"username"`
+	Email        string `db:"email"`
+	Date_of_join string `db:"date_of_join"`
+	Salt         int    `db:"salt"`
+	PHash        string `db:"pHash"`
+}
+
 type UsrData struct {
 	Email string `json:"email"`
 }
 
-func addState(state string) error {
+func addState(state string) error {// {{{
 
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
 
@@ -50,9 +59,9 @@ func addState(state string) error {
 		return err
 	}
 	return nil
-}
+}// }}}
 
-func findState(state string) (string, error) {
+func findState(state string) (string, error) {// {{{
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
 
 	if err != nil {
@@ -75,9 +84,9 @@ func findState(state string) (string, error) {
 	}
 
 	return str, nil
-}
+}// }}}
 
-func remState(state string) error {
+func remState(state string) error {// {{{
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
 
 	if err != nil {
@@ -93,9 +102,9 @@ func remState(state string) error {
 		return err
 	}
 	return nil
-}
+}// }}}
 
-func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
+func paleoIdAuth(w http.ResponseWriter, r *http.Request) {// {{{
 	query := r.URL.Query()
 	state, code := query.Get("state"), query.Get("code")
 	fmt.Println("endpoint hit: paleoId Auth")
@@ -207,9 +216,9 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "private area: \n\tusername: %s \n\temail: %s \n\tdate of join: %s", username, email, date_of_join)
-}
+}// }}}
 
-func getOauthLink(w http.ResponseWriter, r *http.Request) {
+func getOauthLink(w http.ResponseWriter, r *http.Request) {// {{{
 	var state string
 	for {
 		state = RandomString(15)
@@ -229,9 +238,9 @@ func getOauthLink(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("endpoint hit: home")
 	fmt.Fprintf(w, "{resp_code:\"200\"  link:\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"}", clientId, state, redirectUri)
-}
+}// }}}
 
-func homePage(w http.ResponseWriter, r *http.Request) {
+func homePage(w http.ResponseWriter, r *http.Request) {// {{{
 	// fmt.Fprintf(w, "helo")
 	var state string
 	for {
@@ -253,18 +262,9 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("endpoint hit: home")
 	fmt.Fprintf(w, "<a href=\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"> login with paleoId </a> ", clientId, state, redirectUri)
-}
+}// }}}
 
-type UserData struct {
-	Id           int    `db:"id"`
-	Username     string `db:"username"`
-	Email        string `db:"email"`
-	Date_of_join string `db:"date_of_join"`
-	Salt         int    `db:"salt"`
-	PHash        string `db:"pHash"`
-}
-
-func handleRequests() {
+func handleRequests() {// {{{
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
@@ -277,9 +277,9 @@ func handleRequests() {
 	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
-}
+}// }}}
 
-func main() {
+func main() {// {{{
 
 	//fmt.Println(getUserId("pippo.mario@gimelli.com"))
 
@@ -303,4 +303,4 @@ func main() {
 
 	fmt.Println("GO server started")
 	handleRequests()
-}
+}// }}}
