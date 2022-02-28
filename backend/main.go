@@ -19,7 +19,7 @@ import (
 )
 
 const hostSite = "http://localhost:8080/"
-const sqlServerIp = "172.18.0.2:3306"
+const sqlServerIp = "172.18.0.3:3306"
 
 var clientId string = ""
 var clientSecret string = ""

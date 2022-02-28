@@ -8,6 +8,30 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+func getUserId_Usr(username string) (int, error) {
+
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+
+	if err != nil {
+		return -1, err
+	}
+
+	defer db.Close()
+	var ret UserData
+	// q := fmt.Sprintf("SELECT id FROM Users WHERE username = %s;", username)
+	err = db.QueryRow("SELECT id FROM Users WHERE username = (?);", username).Scan(&ret.Id)
+
+	if err == sql.ErrNoRows {
+		return -1, nil
+	}
+
+	if err != nil {
+		return -1, err
+	}
+
+	return ret.Id, nil
+}
+
 func getUserData(usrId int) (string, string, string, error) {
 
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")

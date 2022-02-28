@@ -3,7 +3,7 @@ services:
   maria:
     container_name: maria
     restart: always
-    image: mariadb:5.0
+    image: mariadb:latest
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: cere
@@ -13,6 +13,7 @@ services:
     #  context: ./mariaDb
     #  dockerfile: Dockerfile
     volumes:
+      - './mariadb/conf/:/etc/mysql'
       - './mariadb/data/:/var/lib/mysql'
       - './mariadb/createTables.sql:/createTables.sql'
     ports:

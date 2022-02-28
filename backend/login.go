@@ -19,7 +19,42 @@ import (
 // 	PHash string `db:"pHash"`
 // }
 
-func login(w http.ResponseWriter, r *http.Request) {
+func backendLogin( username string, password string ) (bool, error) {
+
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+
+	if err != nil {
+		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		return false, err
+	}
+
+	defer db.Close()
+	var loginData UserData
+	q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE username = \"%s\";", username)
+	err = db.QueryRow(q).Scan(&loginData.Salt, &loginData.PHash)
+
+	if err == sql.ErrNoRows {
+		// fmt.Fprint(w, "{ \"resp_code\":400, error:\"username does not exist\" }")
+		return false, nil
+	}
+
+	if err != nil {
+		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		return false, nil
+	}
+
+	data := []byte(fmt.Sprint(loginData.Salt) + password)
+
+	hash := sha256.Sum256(data)
+	sum := fmt.Sprintf("%x", hash[:])
+
+	if sum == loginData.PHash {
+		return true, nil
+	}
+	return false, nil
+}
+
+func login(w http.ResponseWriter, r *http.Request) {// {{{
 	fmt.Println("endpoint hit: login")
 
 	err := r.ParseForm()
@@ -30,39 +65,49 @@ func login(w http.ResponseWriter, r *http.Request) {
 	username := validate(r.PostForm.Get("username"))
 	password := validate(r.PostForm.Get("password"))
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
-
+	ret, err := backendLogin(username, password)
+	
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 		return
 	}
 
-	defer db.Close()
-	var loginData UserData
-	q := fmt.Sprintf("SELECT email, salt, pHash FROM Users WHERE username = \"%s\";", username)
-	err = db.QueryRow(q).Scan(&loginData.Email, &loginData.Salt, &loginData.PHash)
+	if ret == true {
 
-	if err == sql.ErrNoRows {
-		fmt.Fprint(w, "{ \"resp_code\":400, error:\"username does not exist\" }")
-		return
-	}
+// start transition
+	// db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
 
-	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
-		return
-	}
+	// if err != nil {
+	// 	fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+	// 	return
+	// }
 
-	data := []byte(fmt.Sprint(loginData.Salt) + password)
+	// defer db.Close()
+	// var loginData UserData
+	// q := fmt.Sprintf("SELECT email, salt, pHash FROM Users WHERE username = \"%s\";", username)
+	// err = db.QueryRow(q).Scan(&loginData.Email, &loginData.Salt, &loginData.PHash)
 
-	hash := sha256.Sum256(data)
-	sum := fmt.Sprintf("%x", hash[:])
+	// if err == sql.ErrNoRows {
+	// 	fmt.Fprint(w, "{ \"resp_code\":400, error:\"username does not exist\" }")
+	// 	return
+	// }
 
-	if sum == loginData.PHash {
+	// if err != nil {
+	// 	fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+	// 	return
+	// }
 
-		usrId, err := getUserId(loginData.Email)
+	// data := []byte(fmt.Sprint(loginData.Salt) + password)
+
+	// hash := sha256.Sum256(data)
+	// sum := fmt.Sprintf("%x", hash[:])
+
+	// if sum == loginData.PHash {
+// end transition
+		usrId, err := getUserId_Usr(username)
 
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+				  fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
 		}
 
 		act, expt, rft, err := generateTokenCouple(usrId)
@@ -76,10 +121,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "{ \"resp_code\":400, error:\"wrong username or password\"  }")
-}
+	fmt.Fprintln(w, "{ \"resp_code\":33300, error: \"wrong username or password\" }")
+	// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"wrong username or password\"  }")
+}// }}}
 
-func accessTokenTest(w http.ResponseWriter, r *http.Request) {
+func accessTokenTest(w http.ResponseWriter, r *http.Request) {// {{{
 	fmt.Println("endpoint hit: access token test")
 
 	err := r.ParseForm()
@@ -102,9 +148,9 @@ func accessTokenTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
-}
+}// }}}
 
-func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
+func refreshTokenReq(w http.ResponseWriter, r *http.Request) {// {{{
 	fmt.Println("endpoint hit: use refresh token")
 
 	err := r.ParseForm()
@@ -128,10 +174,9 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 
 	// fmt.Fprintf(w, "{ \"resp_code\":200, access_token:\"%s\", expire_time: %d  refresh_token:\"%s\" }", act, expt, rft)
 	fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid refresh token\" }")
-}
+}// }}}
 
 // func changeUserData(w http.ResponseWriter, r *http.Request){
-// 	fmt.Println("endpoint hit: change user data")
 
 // 	err := r.ParseForm()
 
@@ -155,9 +200,10 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 // 		fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
 // 		return
 // 	}
+		
 // }
 
-func getUserDataReq(w http.ResponseWriter, r *http.Request) {
+func getUserDataReq(w http.ResponseWriter, r *http.Request) {// {{{
 	fmt.Println("endpoint hit: get user data")
 
 	err := r.ParseForm()
@@ -192,9 +238,9 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "{ \"resp_code\":200, username: \"%v\", email: \"%v\", date_of_join: \"%v\" }", username, email, date_of_join)
-}
+}// }}}
 
-func signIn(w http.ResponseWriter, r *http.Request) {
+func signIn(w http.ResponseWriter, r *http.Request) {// {{{
 	fmt.Println("endpoint hit: sign in")
 
 	err := r.ParseForm()
@@ -219,4 +265,4 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
-}
+}// }}}
