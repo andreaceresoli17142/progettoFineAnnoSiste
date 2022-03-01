@@ -10,7 +10,7 @@ import (
 
 func getUserId_Usr(username string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return -1, err
@@ -34,7 +34,7 @@ func getUserId_Usr(username string) (int, error) {
 
 func getUserData(usrId int) (string, string, string, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return "", "", "", err
@@ -56,8 +56,25 @@ func getUserData(usrId int) (string, string, string, error) {
 	return ret.Username, ret.Email, ret.Date_of_join, nil
 }
 
+func updateLoginDate(usrId int ) error {
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+
+	if err != nil {
+		return err
+	}
+
+	defer db.Close()
+	
+	_,	err = db.Exec( "UPDATE Users SET last_login = CURRENT_TIMESTAMP() WHERE id = (?) ", usrId  )
+	
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func userExists(username string, email string) (bool, error) {
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return false, err
@@ -92,7 +109,7 @@ func addUser(username string, email string, password string) (bool, error) {
 	}
 
 	// INSERT INTO Users ( username, email, date_of_join, salt, pHash ) VALUES ( "pima", "pippo.mario@gimelli.com", CURRENT_DATE(), 123456, "62d18522b74d75b2a84776c91ba5498377441d4c4af0cea22ca7de9e09475d3a" );
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return false, err

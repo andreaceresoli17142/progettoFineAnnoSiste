@@ -6,6 +6,26 @@ import (
 	"time"
 )
 
+type OauthResp struct {
+	AccessToken string `json:"access_token"`
+}
+
+type UserData struct {
+	Id           int    `db:"id"`
+	Username     string `db:"username"`
+	Email        string `db:"email"`
+	Date_of_join string `db:"date_of_join"`
+	Salt         int    `db:"salt"`
+	PHash        string `db:"pHash"`
+}
+
+type actData struct {
+	User_id       int    `db:"userid"`
+	Access_token  string `db:"accessToken"`
+	Refresh_token string `db:"refreshToken"`
+	Exp           int32  `db:"expireTime"`
+}
+
 func validate(input string) string {
 	// remove " ' < > / \ to validate user input
 	re := regexp.MustCompile(`[\\\/\<\>\"\']*`)

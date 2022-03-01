@@ -10,7 +10,7 @@ import (
 
 func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return -1, err
@@ -32,57 +32,61 @@ func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 	return ret, nil
 }
 
-func getUserIdFromAccessToken(access_token string) (int, error) {
+// old function, moved to accessToken_get_usrid
+// func getUserIdFromAccessToken(access_token string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+// 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
-	if err != nil {
-		return -1, err
-	}
+// 	if err != nil {
+// 		return -1, err
+// 	}
 
-	defer db.Close()
-	var ret int
-	q := fmt.Sprintf("SELECT userid FROM Token WHERE accessToken = \"%v\";", access_token)
-	err = db.QueryRow(q).Scan(&ret)
+// 	defer db.Close()
+// 	var ret int
+// 	// q := fmt.Sprintf("SELECT userid FROM Token WHERE accessToken = \"%s\";", access_token)
+// 	// err = db.QueryRow(q).Scan(&ret)
+// 	err = db.QueryRow("SELECT userid FROM Token WHERE accessToken = (?);", access_token).Scan(&ret)
+// 	// fmt.Println("sum: " + fmt.Sprintf("%d", ret))
 
-	if err == sql.ErrNoRows {
-		return -1, nil
-	}
+// 	if err == sql.ErrNoRows {
+// 		return -1, nil
+// 	}
 
-	if err != nil {
-		return -1, err
-	}
+// 	if err != nil {
+// 		return -1, err
+// 	}
 
-	return ret, nil
-}
+// 	updateLoginDate(ret)
+// 	return ret, nil
+// }
 
-func accessTokenExists(access_token string) (bool, error) {
+// func accessTokenExists_backend(access_token string) (bool, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+// 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
-	if err != nil {
-		return false, err
-	}
+// 	if err != nil {
+// 		return false, err
+// 	}
 
-	defer db.Close()
-	var ret string
-	q := fmt.Sprintf("SELECT accessToken FROM Token WHERE accessToken = \"%s\";", access_token)
-	err = db.QueryRow(q).Scan(&ret)
+// 	defer db.Close()
+// 	var ret string
+// 	q := fmt.Sprintf("SELECT accessToken FROM Token WHERE accessToken = \"%s\";", access_token)
+// 	err = db.QueryRow(q).Scan(&ret)
 
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
+// 	if err == sql.ErrNoRows {
+// 		return false, nil
+// 	}
 
-	if err != nil {
-		return false, err
-	}
+// 	if err != nil {
+// 		return false, err
+// 	}
 
-	return true, nil
-}
+// 	return true, nil
+// }
 
 func refreshTokenExists(refresh_token string) (bool, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return false, err
@@ -104,9 +108,9 @@ func refreshTokenExists(refresh_token string) (bool, error) {
 	return true, nil
 }
 
-func getUserId(userEmail string) (int, error) {
+func getUserId_Email(userEmail string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return -1, err
@@ -130,10 +134,10 @@ func getUserId(userEmail string) (int, error) {
 
 func tokenCoupleAlreadyExists(usrId int) (bool, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
-
+		return false, err
 	}
 
 	defer db.Close()
@@ -158,17 +162,17 @@ func generateTokenCouple(usrId int) (string, int32, string, error) {
 
 	act := ""
 
-	for true {
+	for {
 
 		act = RandomString(64)
-		ret, err := accessTokenExists(act)
+		ret, err := accessToken_get_usrid(act)
 
 		if err != nil {
 			// fmt.Println("uh oh")
 			return "", -1, "", err
 		}
 
-		if !ret {
+		if ret != -1 {
 			// fmt.Println("found act")
 			break
 		}
@@ -177,7 +181,7 @@ func generateTokenCouple(usrId int) (string, int32, string, error) {
 
 	rft := ""
 
-	for true {
+	for {
 
 		rft = RandomString(64)
 		ret, err := refreshTokenExists(rft)
@@ -199,7 +203,7 @@ func generateTokenCouple(usrId int) (string, int32, string, error) {
 		return "", -1, "", err
 	}
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return "", -1, "", err
@@ -225,27 +229,32 @@ func generateTokenCouple(usrId int) (string, int32, string, error) {
 	return act, expt, rft, nil
 }
 
-type actData struct {
-	Access_token  string `db:"accessToken"`
-	Refresh_token string `db:"refreshToken"`
-	Exp           int32  `db:"expireTime"`
-}
+// type actData struct {
+// 	User_id       int    `db:"userid"`
+// 	Access_token  string `db:"accessToken"`
+// 	Refresh_token string `db:"refreshToken"`
+// 	Exp           int32  `db:"expireTime"`
+// }
 
-func accessTokenValid(access_token string) (bool, error) {
+func accessToken_get_usrid(access_token string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
-		return false, err
+		return -1, err
 	}
 
 	defer db.Close()
 	var ret actData
-	q := fmt.Sprintf("SELECT accessToken, expireTime, refreshToken FROM Token WHERE accessToken = \"%s\";", access_token)
-	err = db.QueryRow(q).Scan(&ret.Access_token, &ret.Exp, &ret.Refresh_token)
+	q := fmt.Sprintf("SELECT userid, accessToken, expireTime, refreshToken FROM Token WHERE accessToken = \"%s\";", access_token)
+	err = db.QueryRow(q).Scan(&ret.User_id, &ret.Access_token, &ret.Exp, &ret.Refresh_token)
 
 	if err != nil {
-		return false, err
+		return -1, err
+	}
+
+	if err == sql.ErrNoRows {
+		return -1, nil
 	}
 
 	//return true, nil
@@ -253,17 +262,18 @@ func accessTokenValid(access_token string) (bool, error) {
 	if ret.Access_token != "nil" {
 		if ret.Access_token == access_token {
 			if int32(time.Now().Unix()) < ret.Exp {
-				return true, nil
+				updateLoginDate(ret.User_id)
+				return ret.User_id, nil
 			} // else {
 			// 	// err = deleteAccessToken(access_token)
 			// 	if err != nil {
 			// 		return false, nil
 			// 	}
 			// }
-			fmt.Printf("now: %d, token_exp: %d", int32(time.Now().Unix()), ret.Exp)
+			//fmt.Printf("now: %d, token_exp: %d", int32(time.Now().Unix()), ret.Exp)
 		}
 	}
-	return false, nil
+	return -1, nil
 }
 
 func useRefreshToken(refresh_token string) (string, int32, string, error) {

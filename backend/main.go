@@ -1,50 +1,45 @@
 package main
 
-import (
-	// "crypto/sha256"
+import (// {{{
 	"database/sql"
 	"strings"
-
-	// "regexp"
-	// "math/rand"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"runtime"
 	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/gorilla/mux"
-)
+)// }}}
 
-const hostSite = "http://localhost:8080/"
-const sqlServerIp = "172.18.0.3:3306"
+var fileDir string
 
-var clientId string = ""
-var clientSecret string = ""
-var redirectUri string = hostSite + "oauth"
+// const hostSite = "http://localhost:8080/"
+// const sqlServerIp = "172.18.0.2:3306"
 
-type OauthResp struct {
-	AccessToken string `json:"access_token"`
-}
+// var clientId string = ""
+// var clientSecret string = ""
+// var redirectUri string = hostSite + "oauth"
 
-type UserData struct {
-	Id           int    `db:"id"`
-	Username     string `db:"username"`
-	Email        string `db:"email"`
-	Date_of_join string `db:"date_of_join"`
-	Salt         int    `db:"salt"`
-	PHash        string `db:"pHash"`
-}
+// type OauthResp struct {
+// 	AccessToken string `json:"access_token"`
+// }
 
-type UsrData struct {
-	Email string `json:"email"`
-}
+// type UserData struct {
+// 	Id           int    `db:"id"`
+// 	Username     string `db:"username"`
+// 	Email        string `db:"email"`
+// 	Date_of_join string `db:"date_of_join"`
+// 	Salt         int    `db:"salt"`
+// 	PHash        string `db:"pHash"`
+// }
 
-func addState(state string) error {// {{{
+func addState(state string) error { // {{{
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return err
@@ -59,10 +54,10 @@ func addState(state string) error {// {{{
 		return err
 	}
 	return nil
-}// }}}
+} // }}}
 
-func findState(state string) (string, error) {// {{{
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+func findState(state string) (string, error) { // {{{
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		log.Println("aaa")
@@ -84,10 +79,10 @@ func findState(state string) (string, error) {// {{{
 	}
 
 	return str, nil
-}// }}}
+} // }}}
 
-func remState(state string) error {// {{{
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/instanTex_db")
+func remState(state string) error { // {{{
+	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
 	if err != nil {
 		return err
@@ -102,9 +97,9 @@ func remState(state string) error {// {{{
 		return err
 	}
 	return nil
-}// }}}
+} // }}}
 
-func paleoIdAuth(w http.ResponseWriter, r *http.Request) {// {{{
+func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	query := r.URL.Query()
 	state, code := query.Get("state"), query.Get("code")
 	fmt.Println("endpoint hit: paleoId Auth")
@@ -186,7 +181,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {// {{{
 		return
 	}
 
-	var resp1Data UsrData
+	var resp1Data UserData
 	err = json.Unmarshal(body, &resp1Data)
 
 	if err != nil {
@@ -196,7 +191,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {// {{{
 
 	email := resp1Data.Email
 
-	userId, err := getUserId(email)
+	userId, err := getUserId_Email(email)
 
 	if err != nil {
 		fmt.Println(err)
@@ -216,9 +211,9 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {// {{{
 	}
 
 	fmt.Fprintf(w, "private area: \n\tusername: %s \n\temail: %s \n\tdate of join: %s", username, email, date_of_join)
-}// }}}
+} // }}}
 
-func getOauthLink(w http.ResponseWriter, r *http.Request) {// {{{
+func getOauthLink(w http.ResponseWriter, r *http.Request) { // {{{
 	var state string
 	for {
 		state = RandomString(15)
@@ -238,9 +233,9 @@ func getOauthLink(w http.ResponseWriter, r *http.Request) {// {{{
 	}
 	fmt.Println("endpoint hit: home")
 	fmt.Fprintf(w, "{resp_code:\"200\"  link:\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"}", clientId, state, redirectUri)
-}// }}}
+} // }}}
 
-func homePage(w http.ResponseWriter, r *http.Request) {// {{{
+func homePage(w http.ResponseWriter, r *http.Request) { // {{{
 	// fmt.Fprintf(w, "helo")
 	var state string
 	for {
@@ -248,7 +243,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {// {{{
 		ret, err := findState(state)
 		if err != nil {
 			fmt.Println(err)
-		//	fmt.Println("helo")
+			//	fmt.Println("helo")
 			return
 		}
 		if ret == "" {
@@ -262,45 +257,74 @@ func homePage(w http.ResponseWriter, r *http.Request) {// {{{
 	}
 	fmt.Println("endpoint hit: home")
 	fmt.Fprintf(w, "<a href=\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"> login with paleoId </a> ", clientId, state, redirectUri)
+} // }}}
+
+func test(w http.ResponseWriter, r *http.Request) {// {{{
+	fmt.Println("endpoint hit: test")
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	act := validate(r.PostForm.Get("act"))
+	t, err := accessToken_get_usrid(act)
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+	fmt.Println(t)
 }// }}}
 
-func handleRequests() {// {{{
+func handleRequests() { // {{{
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 	myRouter.HandleFunc("/login", login).Methods("POST")
-	myRouter.HandleFunc("/tokentest", accessTokenTest)
+	myRouter.HandleFunc("/test", test)
 	myRouter.HandleFunc("/refreshtoken", refreshTokenReq).Methods("POST")
 	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET")
 	myRouter.HandleFunc("/signin", signIn).Methods("POST")
-
+	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
+	// myRouter.HandleFunc("/testAct", testAct).Methods("POST")
+	// myRouter.HandleFunc("/testActV", testActV).Methods("POST")
 	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
-}// }}}
+} // }}}
 
-func main() {// {{{
-
-	//fmt.Println(getUserId("pippo.mario@gimelli.com"))
-
-	// for i := 0; i < 100; i++ {
-	// 	fmt.Println(RandomString(10))
+func main() { // {{{
+	
+	loadEnv()
+	// err := sendEmail("andrea.ceresoli03@gmail.com", "test email", "yo you seeing this?")
+	// if err != nil {
+	// 	log.Fatal(err)
 	// }
 
-	content, err := ioutil.ReadFile("./oauthTokens.json")
-	if err != nil {
-		log.Fatal("Error when opening file: ", err)
+	//TODO: soluzione orribile, ma se chiamo fileDir al posto di file mi da errore
+	_, file, _, ok := runtime.Caller(1)
+	if !ok {
+		log.Fatal( "error getting file directory" )
 	}
+	fileDir = file
 
-	var payload map[string]string
-	err = json.Unmarshal(content, &payload)
-	if err != nil {
-		log.Fatal("Error during Unmarshal(): ", err)
-	}
+	// content, err := ioutil.ReadFile("./oauthTokens.json")
+	// if err != nil {
+	// 	log.Fatal("Error when opening file: ", err)
+	// }
 
-	clientId = payload["userid"]
-	clientSecret = payload["usersecret"]
+	// var payload map[string]string
+	// err = json.Unmarshal(content, &payload)
+	// if err != nil {
+	// 	log.Fatal("Error during Unmarshal(): ", err)
+	// }
+
+	// clientId = payload["userid"]
+	// clientSecret = payload["usersecret"]
 
 	fmt.Println("GO server started")
 	handleRequests()
-}// }}}
+} // }}}
