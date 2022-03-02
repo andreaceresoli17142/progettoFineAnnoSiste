@@ -15,7 +15,7 @@ services:
     volumes:
       - './mariadb/conf/:/etc/mysql'
       - './mariadb/data/:/var/lib/mysql'
-      - './mariadb/createTables.sql:/createTables.sql'
+      - './mariadb/createTables.sql:/ct.sql'
     ports:
       - 3306
   backend:
