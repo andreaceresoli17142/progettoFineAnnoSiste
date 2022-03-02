@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
 	"os"
 
-	"github.com/andreaceresoli17142/progettoFineAnnoSiste/gopackages"
 	"github.com/joho/godotenv"
 )
 
@@ -51,5 +50,5 @@ func loadEnv(){
 	// if !ok {
 	// 	log.Fatal("from env variables")
 	// }
-	fmt.Println( cz.Successln("enviroment variables loaded") )
+	Successln("enviroment variables loaded")
 }
