@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/andreaceresoli17142/progettoFineAnnoSiste/backend/internal/colorize"
+	"github.com/andreaceresoli17142/progettoFineAnnoSiste/gopackages"
 	"github.com/joho/godotenv"
 )
 

@@ -1,4 +1,4 @@
-package cz 
+package main 
 
 import (
 	"fmt"
