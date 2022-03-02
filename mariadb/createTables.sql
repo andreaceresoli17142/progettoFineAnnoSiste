@@ -22,10 +22,18 @@ CREATE TABLE FriendRequests (
     PRIMARY KEY ( id )
 );
 
+CREATE TABLE ConversationName (
+	id INT NOT NULL AUTO_INCREMENT,
+	name VARCHAR(30) NOT NULL,
+	description TEXT,
+	date_of_creation DATE DEFAULT CURRENT_DATE NOT NULL,
+	PRIMARY KEY ( id )
+);
+
 CREATE TABLE Conversations (
     id INT NOT NULL,
     participantId INT NOT NULL,
-    date_of_join DATE NOT NULL,
+    date_of_join DATE DEFAULT CURRENT_DATE NOT NULL,
     PRIMARY KEY ( id, participantId )
 );
 
@@ -48,10 +56,11 @@ INSERT INTO Users ( username, email, date_of_join, salt, pHash, last_login ) VAL
 
 INSERT INTO Users ( username, email, date_of_join ,salt, pHash, last_login) VALUES ( "taurone", "taurone.mario@gimelli.com", CURRENT_DATE(), 123456, "62d18522b74d75b2a84776c91ba5498377441d4c4af0cea22ca7de9e09475d3a", CURRENT_TIMESTAMP());
 
+INSERT INTO ConversationName VALUES ( "gruppo tennici", "taurone trovati un lavoro" );
 
-INSERT INTO Conversations VALUES ( 0, 0, CURRENT_DATE() );
+INSERT INTO Conversations VALUES ( 0, 0 );
 
-INSERT INTO Conversations VALUES ( 0, 1, CURRENT_DATE() );
+INSERT INTO Conversations VALUES ( 0, 1 );
 
 CREATE TABLE MessageTable0 (
     id INT NOT NULL AUTO_INCREMENT,
