@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/andreaceresoli17142/progettoFineAnnoSiste/backend/internal/colorize"
 	"github.com/joho/godotenv"
 )
 
@@ -50,5 +51,5 @@ func loadEnv(){
 	// if !ok {
 	// 	log.Fatal("from env variables")
 	// }
-	fmt.Println( green("enviroment variables loaded") )
+	fmt.Println( cz.Successln("enviroment variables loaded") )
 }
