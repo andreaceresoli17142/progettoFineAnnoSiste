@@ -276,10 +276,11 @@ func test(w http.ResponseWriter, r *http.Request) {// {{{
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 		return
 	}
-	fmt.Println(t)
+	fmt.Fprintf(w, "user id: %d", t)
 }// }}}
 
-func handleRequests() { // {{{
+// route endpoints {{{
+func handleRequests() { 
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
@@ -289,7 +290,7 @@ func handleRequests() { // {{{
 	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET")
 	myRouter.HandleFunc("/signin", signIn).Methods("POST")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
-	// myRouter.HandleFunc("/testAct", testAct).Methods("POST")
+	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET")
 	// myRouter.HandleFunc("/testActV", testActV).Methods("POST")
 	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 

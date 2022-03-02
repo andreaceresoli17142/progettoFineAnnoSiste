@@ -1,13 +1,15 @@
 package main
 
-import (// {{{
-	"crypto/sha256"
+import ( // {{{
+	// "crypto/sha256"
 	"database/sql"
 	"fmt"
+	// "log"
 	"net/http"
+	"encoding/json"
 
 	_ "github.com/go-sql-driver/mysql"
-)// }}}
+) // }}}
 
 type Conversation struct {
 	Id int `db:"id"`
@@ -17,39 +19,78 @@ type Conversation struct {
 
 // get conversations {{{
 // QUERY: SELECT c.id, cn.name, cn.description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = 0 GROUP BY c.id;
-func getConversations(access_token string) ([]string, error) {
+func getConversations(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: get conversations")
+
+	 access_token := r.Header.Get("access-token")
+
+	// err := r.ParseForm()
+
+	// if err != nil {
+	// 	fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+	// 	return
+	// }
+
+	// access_token := validate(r.PostForm.Get("access_token"))
+	
+	fmt.Printf( "debug - act: %s\n", access_token )
+
+	usr_id, err := accessToken_get_usrid( access_token )
+
+	fmt.Printf( "debug - userid: %d\n", usr_id )
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	if usr_id == -1 {
+		fmt.Fprint(w, "{ \"resp_code\":300, error: \"invalid access token\" }")
+		return
+	}
 
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
+	defer db.Close()
+
 	if err != nil {
-		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
-		return false, err
+		fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		return 
 	}
 
-	defer db.Close()
-	var convs []Conversation
 	// q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id)
-	err = db.QueryRow("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id).Scan(&loginData.Salt, &loginData.PHash)
+	res, err := db.Query("SELECT c.id as id, cn.name as name, cn.description as description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = (?) GROUP BY c.id;", usr_id)
+
+	defer res.Close()
 
 	if err == sql.ErrNoRows {
-		// fmt.Fprint(w, "{ \"resp_code\":400, error:\"username does not exist\" }")
-		return false, nil
-	}
+		fmt.Fprint(w, "{ \"resp_code\":200, data:[] }")
+		return
+	}	
 
 	if err != nil {
-		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
-		return false, nil
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
 	}
 
-	data := []byte(fmt.Sprint(loginData.Salt) + password)
+	var convs []Conversation
 
-	hash := sha256.Sum256(data)
-	sum := fmt.Sprintf("%x", hash[:])
+	for res.Next() {
+		var conv Conversation
 
-	if sum == loginData.PHash {
-		return true, nil
+		err := res.Scan(&conv.Id, &conv.Name, &conv.Description)
+		
+		if err != nil {
+			fmt.Printf( "debug - wqe: %d\n", usr_id )
+			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			return
+		}
+
+		convs = append(convs, conv)
 	}
-	return false, nil
+
+	a, _ := json.Marshal(convs)
+
+	fmt.Fprintf(w, "{ \"resp_code\":200, data:\"%s\" }", string(a) )
+
 } // }}}
-
-

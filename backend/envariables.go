@@ -50,5 +50,5 @@ func loadEnv(){
 	// if !ok {
 	// 	log.Fatal("from env variables")
 	// }
-	fmt.Println( green("enviroment variables installed") )
+	fmt.Println( green("enviroment variables loaded") )
 }

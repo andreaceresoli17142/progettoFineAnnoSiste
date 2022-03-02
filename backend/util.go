@@ -19,12 +19,12 @@ type UserData struct {
 	PHash        string `db:"pHash"`
 }
 
-type actData struct {
-	User_id       int    `db:"userid"`
-	Access_token  string `db:"accessToken"`
-	Refresh_token string `db:"refreshToken"`
-	Exp           int32  `db:"expireTime"`
-}
+// type actData struct {
+// 	User_id       int    `db:"userid"`
+// 	Access_token  string `db:"accessToken"`
+// 	Refresh_token string `db:"refreshToken"`
+// 	Exp           int32  `db:"expireTime"`
+// }
 
 func validate(input string) string {
 	// remove " ' < > / \ to validate user input

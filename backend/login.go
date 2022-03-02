@@ -73,7 +73,7 @@ func login(w http.ResponseWriter, r *http.Request) { // {{{
 	}
 
 	ret, err := backendLogin(usrId, password)
-	//fmt.Println(usrId)
+	// fmt.Println("hjello: "+fmt.Sprint(usrId))
 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
@@ -257,15 +257,16 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 }// }}}
 
 func getUserDataReq(w http.ResponseWriter, r *http.Request) { // {{{
-	fmt.Println("endpoint hit: get user data")
+	fmt.Println("endpoint hit: get use data")
+	act := r.Header.Get("access-token")
 
-	err := r.ParseForm()
+	// err := r.ParseForm()
 
-	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-		return
-	}
-	act := validate(r.PostForm.Get("access_token"))
+// 	if err != nil {
+// 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+// 		return
+// 	}
+// 	act := validate(r.PostForm.Get("access_token"))
 
 	usrId, err := accessToken_get_usrid(act)
 

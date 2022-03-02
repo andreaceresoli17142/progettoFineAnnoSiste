@@ -6,6 +6,7 @@
 
 ---             
          
+ - migrate all access token to headers and all other data to / separated url
  - clean up comments
  - comment code
  - change all q:= "" db.Exec() into dc.Exec("... (?) ... ", x)
@@ -13,10 +14,12 @@
  - oauth
  - change user: send confirmation email when changing email
 
+ - implementing: get conversations
+	 - returns only first conversation ( i think ) 
+
  - implement:
 	 - send friend request
 	 - accept firend request
 	 - get friend requests
-	 - get conversations
 	 - send messages
 	 - get messages ( with api pages )
