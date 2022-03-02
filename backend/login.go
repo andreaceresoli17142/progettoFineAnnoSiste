@@ -103,12 +103,13 @@ func login(w http.ResponseWriter, r *http.Request) { // {{{
 func refreshTokenReq(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Println("endpoint hit: use refresh token")
 
-	err := r.ParseForm()
+	reft := r.Header.Get("refresh-token")
+	// err := r.ParseForm()
 
-	if err != nil {
-		fmt.Println(err)
-	}
-	reft := validate(r.PostForm.Get("refresh_token"))
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// reft := validate(r.PostForm.Get("refresh_token"))
 
 	act, expt, rft, err := useRefreshToken(reft)
 
@@ -258,8 +259,9 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 
 func getUserDataReq(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Println("endpoint hit: get use data")
-	act := r.Header.Get("access-token")
 
+	act := r.Header.Get("access-token")
+	
 	// err := r.ParseForm()
 
 // 	if err != nil {
