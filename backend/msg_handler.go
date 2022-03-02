@@ -9,12 +9,15 @@ import (// {{{
 	_ "github.com/go-sql-driver/mysql"
 )// }}}
 
-type conversation struct {
-
-
+type Conversation struct {
+	Id int `db:"id"`
+	Name string `db:"name"`
+	Description string `db:"description"`
 }
 
-func getConversations(access_token string) ([]string, error) { // {{{
+// get conversations {{{
+// QUERY: SELECT c.id, cn.name, cn.description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = 0 GROUP BY c.id;
+func getConversations(access_token string) ([]string, error) {
 
 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
 
@@ -24,7 +27,7 @@ func getConversations(access_token string) ([]string, error) { // {{{
 	}
 
 	defer db.Close()
-	var loginData UserData
+	var convs []Conversation
 	// q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id)
 	err = db.QueryRow("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id).Scan(&loginData.Salt, &loginData.PHash)
 
