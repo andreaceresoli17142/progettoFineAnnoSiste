@@ -58,13 +58,13 @@ INSERT INTO Users ( username, email, date_of_join ,salt, pHash, last_login) VALU
 
 INSERT INTO ConversationName ( name, description  ) VALUES ( "gruppo tennici (senza taurone)", "tutti i miei amici odiano taurone" );
 
-INSERT INTO Conversations ( id, participantId ) VALUES ( 0, 0 );
+INSERT INTO Conversations ( id, participantId ) VALUES ( 1, 1 );
 
 INSERT INTO ConversationName ( name, description  ) VALUES ( "gruppo tennici", "taurone trovati un lavoro" );
 
-INSERT INTO Conversations ( id, participantId ) VALUES ( 1, 0 );
+INSERT INTO Conversations ( id, participantId ) VALUES ( 2, 1 );
 
-INSERT INTO Conversations ( id, participantId ) VALUES ( 1, 1 );
+INSERT INTO Conversations ( id, participantId ) VALUES ( 2, 2 );
 
 CREATE TABLE MessageTable0 (
     id INT NOT NULL AUTO_INCREMENT,

@@ -326,6 +326,6 @@ func main() { // {{{
 	// clientId = payload["userid"]
 	// clientSecret = payload["usersecret"]
 
-	fmt.Println("GO server started")
+	Successln("GO server started")
 	handleRequests()
 } // }}}

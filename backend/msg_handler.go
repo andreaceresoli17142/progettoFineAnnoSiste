@@ -21,8 +21,8 @@ type Conversation struct {
 // QUERY: SELECT c.id, cn.name, cn.description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = 0 GROUP BY c.id;
 func getConversations(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get conversations")
-
-	 access_token := r.Header.Get("access-token")
+	// fmt.Println( r.Header.Authorization )
+	 access_token := BearerAuthHeader(r.Header.Get("Authorization"))
 
 	// err := r.ParseForm()
 
@@ -81,7 +81,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 		err := res.Scan(&conv.Id, &conv.Name, &conv.Description)
 		
 		if err != nil {
-			fmt.Printf( "debug - wqe: %d\n", usr_id )
+			// fmt.Printf( "debug - wqe: %d\n", usr_id )
 			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 			return
 		}
