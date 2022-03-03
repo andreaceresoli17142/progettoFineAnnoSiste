@@ -1,5 +1,6 @@
 package main
 
+/*
 import (// {{{
 	"crypto/sha256"
 	"database/sql"
@@ -11,7 +12,7 @@ import (// {{{
 
 func backendLogin(usr_id int, password string) (bool, error) { // {{{
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
@@ -234,7 +235,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 
 		q += " WHERE id = " + fmt.Sprintf("%d", usrId) + ";"
 
-		db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+		db, err := sql.Open("mysql", databaseString)
 
 		if err != nil {
 			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
@@ -261,7 +262,7 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Println("endpoint hit: get use data")
 
 	act := r.Header.Get("access-token")
-	
+
 	// err := r.ParseForm()
 
 // 	if err != nil {
@@ -325,3 +326,4 @@ func signIn(w http.ResponseWriter, r *http.Request) { // {{{
 
 	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
 } // }}}
+*/

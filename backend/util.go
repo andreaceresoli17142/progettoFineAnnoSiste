@@ -1,11 +1,12 @@
 package main
 
-import (
+import ( //{{{
 	"math/rand"
 	"regexp"
 	"time"
-)
+) // }}}
 
+// structs {{{
 type OauthResp struct {
 	AccessToken string `json:"access_token"`
 }
@@ -19,12 +20,20 @@ type UserData struct {
 	PHash        string `db:"pHash"`
 }
 
-// type actData struct {
-// 	User_id       int    `db:"userid"`
-// 	Access_token  string `db:"accessToken"`
-// 	Refresh_token string `db:"refreshToken"`
-// 	Exp           int32  `db:"expireTime"`
-// }
+type actData struct {
+	User_id       int    `db:"userid"`
+	Access_token  string `db:"accessToken"`
+	Refresh_token string `db:"refreshToken"`
+	Exp           int32  `db:"expireTime"`
+}
+
+type Conversation struct {
+	Id          int    `db:"id"`
+	Name        string `db:"name"`
+	Description string `db:"description"`
+}
+
+// }}}
 
 func validate(input string) string {
 	// remove " ' < > / \ to validate user input

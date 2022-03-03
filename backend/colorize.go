@@ -1,9 +1,13 @@
-package main 
+package main
 
+// imports {{{
 import (
 	"fmt"
 )
 
+//}}}
+
+// variables {{{
 var (
 	Creset  string = "\033[0m"
 	Cred    string = "\033[31m"
@@ -15,6 +19,9 @@ var (
 	Cwhite  string = "\033[37m"
 )
 
+//}}}
+
+// string to colors {{{
 func green(input_string string) string {
 	return Cgreen + input_string + Creset
 }
@@ -43,45 +50,60 @@ func white(input_string string) string {
 	return Cwhite + input_string + Creset
 }
 
+//}}}
+
+// debug prints {{{
 func Debugf(s string, args ...interface{}) {
 	fmt.Printf(cyan(" 💧 Debug: "+s+"\n"), args...)
 }
 
+func Debugln(s interface{}) {
+	cyan(" 💧 Debug: " + fmt.Sprintln(s))
+}
+
+//}}}
+
+// debug prints {{{
 func Warningf(s string, args ...interface{}) {
 	fmt.Printf(yellow(" ⚠️  Warning: "+s+"\n"), args...)
 }
 
+func Warningln(s interface{}) {
+	yellow(" ⚠️  Warning: " + fmt.Sprintln(s))
+}
+
+//}}}
+
+// debug prints {{{
 func Errorf(s string, args ...interface{}) {
 	fmt.Printf(red(" ❌  Error: "+s+"\n"), args...)
 }
 
+func Errorln(s interface{}) {
+	red(" ❌  Error: " + fmt.Sprintln(s))
+}
+
+//}}}
+
+// debug prints {{{
 func Successf(s string, args ...interface{}) {
 	fmt.Printf(green(" ✅ Success: "+s+"\n"), args...)
 }
 
-func Debugln(s string) {
-	fmt.Println(cyan(" 💧 Debug: " + s))
+func Successln(s interface{}) {
+	green(" ✅ Success: " + fmt.Sprintln(s))
 }
 
-func Warningln(s string) {
-	fmt.Println(yellow(" ⚠️  Warning: " + s))
-}
+//}}}
 
-func Errorln(s string) {
-	fmt.Println(red(" ❌  Error: " + s))
-}
+//+ test function
+// func testColors() {
 
-func Successln(s string) {
-	fmt.Println(green(" ✅ Success: " + s))
-}
+// 	Debugf("testing debug + %s", "stringa maggica")
 
-func testColors() {
+// 	Warningf("testing debug + %s", "stringa maggica")
 
-	Debugf("testing debug + %s", "stringa maggica")
+// 	Errorf("testing debug + %s", "stringa maggica")
 
-	Warningf("testing debug + %s", "stringa maggica")
-
-	Errorf("testing debug + %s", "stringa maggica")
-
-	Successf("testing debug + %s", "stringa maggica")
-}
+// 	Successf("testing debug + %s", "stringa maggica")
+// }

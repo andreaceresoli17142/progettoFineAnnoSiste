@@ -1,11 +1,12 @@
- _            _       
-| |_ ___   __| | ___  
-| __/ _ \ / _` |/ _ \ 
+ _            _
+| |_ ___   __| | ___
+| __/ _ \ / _` |/ _ \
 | || (_) | (_| | (_) |
- \__\___/ \__,_|\___/ 
+ \__\___/ \__,_|\___/
 
----             
-         
+---
+
+ - add exiration time to refesh token ( 7d )
  - migrate all access token to headers and all other data to / separated url
  - clean up comments
  - comment code
@@ -15,7 +16,7 @@
  - change user: send confirmation email when changing email
 
  - implementing: get conversations
-	 - returns only first conversation ( i think ) 
+	 - returns only first conversation ( i think )
 
  - implement:
 	 - send friend request

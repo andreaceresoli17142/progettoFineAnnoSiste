@@ -1,19 +1,19 @@
 package main
 
-import (// {{{
+import ( // {{{
 	"database/sql"
-	"strings"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"runtime"
 	"net/http"
+	"runtime"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	
+
 	"github.com/gorilla/mux"
-)// }}}
+) // }}}
 
 var fileDir string
 
@@ -39,7 +39,7 @@ var fileDir string
 
 func addState(state string) error { // {{{
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return err
@@ -57,7 +57,7 @@ func addState(state string) error { // {{{
 } // }}}
 
 func findState(state string) (string, error) { // {{{
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		log.Println("aaa")
@@ -82,7 +82,7 @@ func findState(state string) (string, error) { // {{{
 } // }}}
 
 func remState(state string) error { // {{{
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return err
@@ -259,7 +259,7 @@ func homePage(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Fprintf(w, "<a href=\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"> login with paleoId </a> ", clientId, state, redirectUri)
 } // }}}
 
-func test(w http.ResponseWriter, r *http.Request) {// {{{
+func test(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Println("endpoint hit: test")
 
 	err := r.ParseForm()
@@ -270,17 +270,17 @@ func test(w http.ResponseWriter, r *http.Request) {// {{{
 	}
 
 	act := validate(r.PostForm.Get("act"))
-	t, err := accessToken_get_usrid(act)
+	t, err := getAccessToken_usrid(act)
 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 		return
 	}
 	fmt.Fprintf(w, "user id: %d", t)
-}// }}}
+} // }}}
 
 // route endpoints {{{
-func handleRequests() { 
+func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
@@ -298,7 +298,7 @@ func handleRequests() {
 } // }}}
 
 func main() { // {{{
-	
+
 	loadEnv()
 	// err := sendEmail("andrea.ceresoli03@gmail.com", "test email", "yo you seeing this?")
 	// if err != nil {
@@ -308,7 +308,7 @@ func main() { // {{{
 	//TODO: soluzione orribile, ma se chiamo fileDir al posto di file mi da errore
 	_, file, _, ok := runtime.Caller(1)
 	if !ok {
-		log.Fatal( "error getting file directory" )
+		log.Fatal("error getting file directory")
 	}
 	fileDir = file
 

@@ -1,28 +1,20 @@
 package main
 
 import ( // {{{
-	// "crypto/sha256"
 	"database/sql"
-	"fmt"
-	// "log"
-	"net/http"
 	"encoding/json"
+	"fmt"
+	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
-
-type Conversation struct {
-	Id int `db:"id"`
-	Name string `db:"name"`
-	Description string `db:"description"`
-}
 
 // get conversations {{{
 // QUERY: SELECT c.id, cn.name, cn.description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = 0 GROUP BY c.id;
 func getConversations(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get conversations")
 	// fmt.Println( r.Header.Authorization )
-	 access_token := BearerAuthHeader(r.Header.Get("Authorization"))
+	access_token := BearerAuthHeader(r.Header.Get("Authorization"))
 
 	// err := r.ParseForm()
 
@@ -32,12 +24,12 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	// access_token := validate(r.PostForm.Get("access_token"))
-	
-	fmt.Printf( "debug - act: %s\n", access_token )
 
-	usr_id, err := accessToken_get_usrid( access_token )
+	fmt.Printf("debug - act: %s\n", access_token)
 
-	fmt.Printf( "debug - userid: %d\n", usr_id )
+	usr_id, err := getAccessToken_usrid(access_token)
+
+	fmt.Printf("debug - userid: %d\n", usr_id)
 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
@@ -49,13 +41,13 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	defer db.Close()
 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
-		return 
+		return
 	}
 
 	// q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id)
@@ -66,7 +58,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	if err == sql.ErrNoRows {
 		fmt.Fprint(w, "{ \"resp_code\":200, data:[] }")
 		return
-	}	
+	}
 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
@@ -79,7 +71,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 		var conv Conversation
 
 		err := res.Scan(&conv.Id, &conv.Name, &conv.Description)
-		
+
 		if err != nil {
 			// fmt.Printf( "debug - wqe: %d\n", usr_id )
 			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
@@ -91,6 +83,6 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	a, _ := json.Marshal(convs)
 
-	fmt.Fprintf(w, "{ \"resp_code\":200, data:\"%s\" }", string(a) )
+	fmt.Fprintf(w, "{ \"resp_code\":200, data:\"%s\" }", string(a))
 
 } // }}}

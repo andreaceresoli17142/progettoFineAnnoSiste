@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"database/sql"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 
 func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return -1, err
@@ -36,7 +37,7 @@ func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 //! old function, moved to accessToken_get_usrid
 // func getUserIdFromAccessToken(access_token string) (int, error) {
 
-// 	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+// 	db, err := sql.Open("mysql", databaseString)
 
 // 	if err != nil {
 // 		return -1, err
@@ -63,7 +64,7 @@ func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 
 func accessTokenExists(access_token string) (bool, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return false, err
@@ -87,7 +88,7 @@ func accessTokenExists(access_token string) (bool, error) {
 
 func refreshTokenExists(refresh_token string) (bool, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return false, err
@@ -111,7 +112,7 @@ func refreshTokenExists(refresh_token string) (bool, error) {
 
 func getUserId_Email(userEmail string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return -1, err
@@ -135,7 +136,7 @@ func getUserId_Email(userEmail string) (int, error) {
 
 func tokenCoupleAlreadyExists(usrId int) (bool, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		// fmt.Print("0")
@@ -143,7 +144,7 @@ func tokenCoupleAlreadyExists(usrId int) (bool, error) {
 	}
 
 	defer db.Close()
-	var ret int 
+	var ret int
 	q := fmt.Sprintf("SELECT userid FROM Token WHERE userid = \"%v\";", usrId)
 	err = db.QueryRow(q).Scan(&ret)
 	// fmt.Print(fmt.Sprint(ret))
@@ -208,7 +209,7 @@ func generateTokenCouple(usrId int) (string, int32, string, error) {
 		return "", -1, "", err
 	}
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return "", -1, "", err
@@ -245,23 +246,23 @@ func BearerAuthHeader(authHeader string) string {
 	if authHeader == "" {
 		return ""
 	}
- 
+
 	parts := strings.Split(authHeader, "Bearer")
 	if len(parts) != 2 {
 		return ""
 	}
- 
+
 	token := strings.TrimSpace(parts[1])
 	if len(token) < 1 {
 		return ""
 	}
- 
+
 	return token
 }
 
 func accessToken_get_usrid(access_token string) (int, error) {
 
-	db, err := sql.Open("mysql", "root:root@tcp("+sqlServerIp+")/"+dbname)
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
 		return -1, err
@@ -289,7 +290,7 @@ func accessToken_get_usrid(access_token string) (int, error) {
 	if ret.Access_token != "nil" {
 		if ret.Access_token == access_token {
 			if int32(time.Now().Unix()) < ret.Exp {
-				//! update date is broken ( I think )	  
+				//! update date is broken ( I think )
 				// updateLoginDate(ret.User_id)
 				// fmt.Print("wattaf2")
 				return ret.User_id, nil
@@ -321,3 +322,4 @@ func useRefreshToken(refresh_token string) (string, int32, string, error) {
 
 	return generateTokenCouple(usrId)
 }
+*/

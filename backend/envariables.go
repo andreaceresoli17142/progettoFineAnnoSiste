@@ -1,30 +1,31 @@
 package main
 
-import (
-	// "fmt"
+import ( // {{{
 	"log"
 	"os"
 
 	"github.com/joho/godotenv"
-)
+) // }}}
 
-var hostSite string // = "http://localhost:8080/"
+var databaseString string
+var hostSite string    // = "http://localhost:8080/"
 var sqlServerIp string // = "172.18.0.2:3306"
-var dbname string // = "instanTex_db"  
+var dbname string      // = "instanTex_db"
 
-var clientId string // = ""
+var clientId string     // = ""
 var clientSecret string // = ""
-var redirectUri string //  = hostSite + "oauth"
+var redirectUri string  //  = hostSite + "oauth"
 
-func loadEnv(){
+func loadEnv() {
 	godotenv.Load(".env")
+
 	hostSite, ok := os.LookupEnv("HOST_SITE")
 	if !ok {
 		log.Fatal("missing host site from env variables")
 	}
 
 	// needs change
-	 redirectUri = hostSite + "oauth"
+	redirectUri = hostSite + "oauth"
 
 	sqlServerIp, ok = os.LookupEnv("SQL_SERVER_IP")
 	if !ok {
@@ -36,9 +37,11 @@ func loadEnv(){
 		log.Fatal("missing database name from env variables")
 	}
 
+	databaseString = "root:root@tcp(" + sqlServerIp + ")/" + dbname
+
 	clientId, ok = os.LookupEnv("CLIENT_ID_OAUTH")
 	if !ok {
-			  log.Fatal("missing client id from env variables")
+		log.Fatal("missing client id from env variables")
 	}
 
 	clientSecret, ok = os.LookupEnv("CLIENT_SECRET_OAUTH")
