@@ -8,8 +8,7 @@
 
  - add exiration time to refesh token ( 7d )
  - migrate all access token to headers and all other data to / separated url
- - clean up comments
- - comment code
+ - clean up comments and comment code
  - change all q:= "" db.Exec() into dc.Exec("... (?) ... ", x)
  - frontend interface
  - oauth

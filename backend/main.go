@@ -299,13 +299,14 @@ func handleRequests() {
 
 func main() { // {{{
 
-	loadEnv()
-	// err := sendEmail("andrea.ceresoli03@gmail.com", "test email", "yo you seeing this?")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	// load enviroment variables
+	ok := loadEnv()
+	// if loading fails exit the program
+	if ok == false {
+		return
+	}
 
-	//TODO: soluzione orribile, ma se chiamo fileDir al posto di file mi da errore
+	//! soluzione orribile, ma se chiamo fileDir al posto di file mi da errore
 	_, file, _, ok := runtime.Caller(1)
 	if !ok {
 		log.Fatal("error getting file directory")

@@ -24,7 +24,8 @@ type actData struct {
 	User_id       int    `db:"userid"`
 	Access_token  string `db:"accessToken"`
 	Refresh_token string `db:"refreshToken"`
-	Exp           int32  `db:"expireTime"`
+	Act_expt      int    `db:"act_expt"`
+	Rft_expt      int    `db:"rft_expt"`
 }
 
 type Conversation struct {

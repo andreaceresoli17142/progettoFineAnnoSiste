@@ -8,13 +8,12 @@ import (
 
 func sendEmail( reciver_email string, subject string, messagge string) error  {
 
-	email := "noreply.64189489@gmail.com"
-	// password := "noreply56677890898796g7"
-	password := "xecntudonnptbhfh"
-	server := "smtp.gmail.com"
-
+	// email_email := "noreply.64189489@gmail.com"
+	// email_password := "xecntudonnptbhfh"
+	// email_server := "smtp.gmail.com"
+	//:587
 	// Choose auth method and set it up
-	auth := smtp.PlainAuth("", email, password, server)
+	auth := smtp.PlainAuth("", email_email, email_password, email_server)
 
 	// Here we do it all: connect to our server, set up a message and send it
 	to := []string{reciver_email}
@@ -22,7 +21,7 @@ func sendEmail( reciver_email string, subject string, messagge string) error  {
 	msg_string := "To:"+reciver_email+"\r\nSubject: "+subject+"\r\n\r\n"+messagge+"\r\n"
 	fmt.Println(msg_string)
 	msg := []byte(msg_string)
-	err := smtp.SendMail(server+":587", auth, reciver_email, to, msg)
+	err := smtp.SendMail(email_server +":"+ email_port, auth, reciver_email, to, msg)
 	if err != nil {
 		return err
 	}

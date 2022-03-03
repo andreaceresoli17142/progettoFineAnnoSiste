@@ -40,8 +40,9 @@ CREATE TABLE Conversations (
 CREATE TABLE Token (
     userid INT NOT NULL,
     accessToken VARCHAR(64) NOT NULL,
-    expireTime INT NOT NULL,
+    act_expt INT NOT NULL,
     refreshToken VARCHAR(64) NOT NULL,
+	 rft_expt INT NOT NULL,
     PRIMARY KEY ( userid )
 );
 

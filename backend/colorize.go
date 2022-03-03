@@ -58,40 +58,40 @@ func Debugf(s string, args ...interface{}) {
 }
 
 func Debugln(s interface{}) {
-	cyan(" 💧 Debug: " + fmt.Sprintln(s))
+	fmt.Print(cyan(" 💧 Debug: " + fmt.Sprintln(s)))
 }
 
 //}}}
 
-// debug prints {{{
+// warning prints {{{
 func Warningf(s string, args ...interface{}) {
 	fmt.Printf(yellow(" ⚠️  Warning: "+s+"\n"), args...)
 }
 
 func Warningln(s interface{}) {
-	yellow(" ⚠️  Warning: " + fmt.Sprintln(s))
+	fmt.Print(yellow(" ⚠️  Warning: " + fmt.Sprintln(s)))
 }
 
 //}}}
 
-// debug prints {{{
+// error prints {{{
 func Errorf(s string, args ...interface{}) {
 	fmt.Printf(red(" ❌  Error: "+s+"\n"), args...)
 }
 
 func Errorln(s interface{}) {
-	red(" ❌  Error: " + fmt.Sprintln(s))
+	fmt.Print(red(" ❌  Error: " + fmt.Sprintln(s)))
 }
 
 //}}}
 
-// debug prints {{{
+// success prints {{{
 func Successf(s string, args ...interface{}) {
 	fmt.Printf(green(" ✅ Success: "+s+"\n"), args...)
 }
 
 func Successln(s interface{}) {
-	green(" ✅ Success: " + fmt.Sprintln(s))
+	fmt.Print(green(" ✅ Success: " + fmt.Sprintln(s)))
 }
 
 //}}}

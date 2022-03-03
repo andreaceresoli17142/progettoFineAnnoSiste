@@ -65,7 +65,7 @@ func updateLoginDate(usrId int) error {
 
 	defer db.Close()
 
-	_, err = db.Exec("UPDATE Users SET last_login = CURRENT_TIMESTAMP() WHERE id = (?) ", usrId)
+	_, err = db.Exec("UPDATE Users SET last_login = CURRENT_TIMESTAMP() WHERE id = (?) ;", usrId)
 
 	if err != nil {
 		return err

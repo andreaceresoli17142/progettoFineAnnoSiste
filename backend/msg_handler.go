@@ -25,11 +25,11 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	// access_token := validate(r.PostForm.Get("access_token"))
 
-	fmt.Printf("debug - act: %s\n", access_token)
+	// fmt.Printf("debug - act: %s\n", access_token)
 
 	usr_id, err := getAccessToken_usrid(access_token)
 
-	fmt.Printf("debug - userid: %d\n", usr_id)
+	// fmt.Printf("debug - userid: %d\n", usr_id)
 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
