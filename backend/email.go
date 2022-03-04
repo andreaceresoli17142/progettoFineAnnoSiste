@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	// "log"
 	"net/smtp"
 )
@@ -19,7 +18,6 @@ func sendEmail( reciver_email string, subject string, messagge string) error  {
 	to := []string{reciver_email}
 	// msg := []byte( fmt.Sprintf(`To: %s \r\n Subject: %s \r\n	\r\n %s \r\n` , reciver_email, subject, messagge ))
 	msg_string := "To:"+reciver_email+"\r\nSubject: "+subject+"\r\n\r\n"+messagge+"\r\n"
-	fmt.Println(msg_string)
 	msg := []byte(msg_string)
 	err := smtp.SendMail(email_server +":"+ email_port, auth, reciver_email, to, msg)
 	if err != nil {

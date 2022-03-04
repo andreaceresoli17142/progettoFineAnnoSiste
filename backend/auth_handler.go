@@ -8,6 +8,7 @@ import ( // {{{
 	"strings"
 	"time"
 
+   "github.com/gorilla/mux"
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
 
@@ -606,7 +607,7 @@ type otpStruct struct {
 	Expt int `db:"expt"`
 }
 
-func getOtp() (string, err) ( string, err ) {
+func getOtp( ) (string, error) {
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -615,9 +616,9 @@ func getOtp() (string, err) ( string, err ) {
 	}
 
 	defer db.Close()
-	otp = RandomString(32)
+	otp := RandomString(32)
 	var o otpStruct
-	err = db.QueryRow("SELECT otp FROM Users WHERE otp = (?);", otp).Scan(&o.Otp)
+	err = db.QueryRow("SELECT otp FROM PwOtp WHERE otp = (?);", otp).Scan(&o.Otp)
 
 	if err == sql.ErrNoRows {
 		return otp, nil
@@ -630,8 +631,9 @@ func getOtp() (string, err) ( string, err ) {
 	return "", nil
 }
 
+// send otp email {{{
 func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: sign in")
+	fmt.Println("endpoint hit: retrive password (get otp)")
 
 	err := r.ParseForm()
 
@@ -640,17 +642,17 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := validate(r.PostForm.Get("email"))
-
-	usrId, err := getUsrId_Email(email) 
-	
+	vars := mux.Vars(r)
+   email := validate(vars["email"])
+	// email := validate(r.Form.Get("email"))
+	usrId, err := getUserId_Email(email) 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 		return
 	}
 
-	if usrId != -1 {
-		fmt.Fprintf(w, "{ \"resp_code\":400, error: \"no user connected to email\" }", err)
+	if usrId == -1 {
+		fmt.Fprint(w, "{ \"resp_code\":400, error: \"no user connected to email\" }")
 		return
 	}
 
@@ -663,40 +665,116 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 
 	defer db.Close()
 
-	expt := int(time.Now().Unix()) + 60
+	expt := int(time.Now().Unix()) + 600
 	
-	otp = ""
+	otp := ""
 	for {
-		otp, err := getOtp()
+		otp, err = getOtp()
 		if err != nil {
 			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 			return
 		}
-		if otp != ""{
+		if otp != "" {
 			break
 		} 
 	}
+
 	_, err = db.Exec(`
 	INSERT INTO PwOtp VALUES ((?), (?), (?)) 
 	ON DUPLICATE KEY 
 	UPDATE userId = (?), otp = (?), expt = (?)
 	;`, usrId, otp, expt, usrId, otp, expt )
 
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-
 	if err != nil {
-		return false, nil
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
 	}
 
+	err = sendEmail( email, "instan-tex otp code", "/n the code is: " + otp )
 
 	if err != nil {
 		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 		return
 	}
 
-	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
+	fmt.Fprintf(w, "{ \"resp_code\":200 comment:\"otp sended successfully\" }")
 }
+
+// }}}
+
+
+// use otp password retrival {{{
+func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: retrive password (use otp)")
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	new_password := validate(r.PostForm.Get("new_password"))
+	otp := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return 
+	}
+
+	defer db.Close()
+	
+	var otpData otpStruct
+
+	err = db.QueryRow("SELECT userId, expt FROM PwOtp WHERE otp = (?);", otp).Scan(&otpData.UserId, &otpData.Expt)
+
+	if err == sql.ErrNoRows {
+		fmt.Fprint(w, "{ \"resp_code\":400, error:\"token does not exists \" }")
+		return
+	}
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return 
+	}
+
+	if  int(time.Now().Unix()) > otpData.Expt {
+		fmt.Fprint(w, "{ \"resp_code\":400, error:\"token expired\" }")
+		return
+	}
+
+	// db, err = sql.Open("mysql", databaseString)
+
+	// if err != nil {
+	// 	fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+	// 	return 
+	// }
+
+
+
+	defer db.Close()
+
+	salt := RandomInt(100000)
+
+	data := []byte(fmt.Sprint(salt) + new_password)
+
+	hash := sha256.Sum256(data)
+	sum := fmt.Sprintf("%x", hash[:])
+
+
+	_, err = db.Exec("UPDATE Users SET salt = (?), pHash = (?) WHERE id = (?) ", salt, sum, otpData.UserId)
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	fmt.Fprint(w, "{ \"resp_code\":200, comment:\"data changed successfully\" }")
+	return
+}	
+
+// }}}
 
 // }}}

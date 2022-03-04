@@ -282,15 +282,18 @@ func test(w http.ResponseWriter, r *http.Request) { // {{{
 // route endpoints {{{
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
-	myRouter.HandleFunc("/", homePage)
-	myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
-	myRouter.HandleFunc("/login", login).Methods("POST")
+	authRouter := myRouter.PathPrefix("/auth").Subrouter()
+	myRouter.HandleFunc("/", homePage)//.Schemes("https")
+	authRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
+	authRouter.HandleFunc("/login", login).Methods("POST")
 	myRouter.HandleFunc("/test", test)
-	myRouter.HandleFunc("/refreshtoken", refreshTokenReq).Methods("POST")
+	authRouter.HandleFunc("/refreshtoken", refreshTokenReq).Methods("POST")
 	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET")
 	myRouter.HandleFunc("/signin", signIn).Methods("POST")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
 	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET")
+	myRouter.HandleFunc("/retrivepw/getotp/{email}", send_otp_retrivePassword).Methods("GET")
+	myRouter.HandleFunc("/retrivepw/useotp", use_otp_retrivePassword).Methods("POST")
 	// myRouter.HandleFunc("/testActV", testActV).Methods("POST")
 	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 
@@ -306,12 +309,10 @@ func main() { // {{{
 		return
 	}
 
-	//! soluzione orribile, ma se chiamo fileDir al posto di file mi da errore
-	_, file, _, ok := runtime.Caller(1)
+	_, fileDir, _, ok = runtime.Caller(1)
 	if !ok {
 		log.Fatal("error getting file directory")
 	}
-	fileDir = file
 
 	// content, err := ioutil.ReadFile("./oauthTokens.json")
 	// if err != nil {
