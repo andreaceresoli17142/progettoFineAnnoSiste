@@ -265,7 +265,8 @@ func test(w http.ResponseWriter, r *http.Request) { // {{{
 	err := r.ParseForm()
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 200, err)
+		// fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 		return
 	}
 
@@ -273,7 +274,8 @@ func test(w http.ResponseWriter, r *http.Request) { // {{{
 	t, err := getAccessToken_usrid(act)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 200, err)
+		// fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 		return
 	}
 	fmt.Fprintf(w, "user id: %d", t)
@@ -283,21 +285,23 @@ func test(w http.ResponseWriter, r *http.Request) { // {{{
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	authRouter := myRouter.PathPrefix("/auth").Subrouter()
-	myRouter.HandleFunc("/", homePage)//.Schemes("https")
+	myRouter.HandleFunc("/", homePage) //.Schemes("https")
 	authRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 	authRouter.HandleFunc("/login", login).Methods("POST")
+	// authRouter.HandleFunc("/login", corsHandler).Methods("OPTIONS")
 	myRouter.HandleFunc("/test", test)
 	authRouter.HandleFunc("/refreshtoken", refreshTokenReq).Methods("POST")
 	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET")
 	myRouter.HandleFunc("/signin", signIn).Methods("POST")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
 	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET")
-	myRouter.HandleFunc("/retrivepw/getotp/{email}", send_otp_retrivePassword).Methods("GET")
+	myRouter.HandleFunc("/retrivepw/getotp", send_otp_retrivePassword).Methods("GET")
 	myRouter.HandleFunc("/retrivepw/useotp", use_otp_retrivePassword).Methods("POST")
 	// myRouter.HandleFunc("/testActV", testActV).Methods("POST")
 	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
+	// log.Fatal(http.ListenAndServeTLS(":8080", "https-server.crt", "https-server.key", myRouter))
 } // }}}
 
 func main() { // {{{
@@ -305,7 +309,7 @@ func main() { // {{{
 	// load enviroment variables
 	ok := loadEnv()
 	// if loading fails exit the program
-	if ok == false {
+	if !ok {
 		return
 	}
 

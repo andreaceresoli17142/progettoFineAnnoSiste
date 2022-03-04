@@ -8,7 +8,6 @@ import ( // {{{
 	"strings"
 	"time"
 
-   "github.com/gorilla/mux"
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
 
@@ -23,12 +22,13 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 	act, a_expt, rft, r_expt, err := useRefreshToken(reft)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		http.Error(w, err.Error(), 500)
 		return
 	}
 
 	if act != "" {
-			  fmt.Fprintf(w, "{ \"resp_code\":200, access_token:\"%s\", act_expt: %d  refresh_token:\"%s\", rft_expt:%d }", act, a_expt, rft, r_expt)
+		httpSuccessf(w, 200, `"access_token":\"%s\", "act_expt": %d  "refresh_token":\"%s\", "rft_expt":%d`, act, a_expt, rft, r_expt)
+		// fmt.Fprintf(w, "{ \"resp_code\":200, access_token:\"%s\", act_expt: %d  refresh_token:\"%s\", rft_expt:%d }", act, a_expt, rft, r_expt)
 		return
 	}
 
@@ -43,15 +43,15 @@ func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 	}
 
 	defer db.Close()
-	
-	var ret actData 
+
+	var ret actData
 	err = db.QueryRow("SELECT userid, rft_expt FROM Token WHERE refreshToken = (?);", refresh_token).Scan(&ret.User_id, &ret.Rft_expt)
 
 	// return -1 if empty or token is expired
 	if err == sql.ErrNoRows && int(time.Now().Unix()) < ret.Rft_expt {
 		return -1, nil
 	}
-	
+
 	// else return error
 	if err != nil {
 		return -1, err
@@ -60,7 +60,7 @@ func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 	return ret.User_id, nil
 }
 
-//? function may be usless 
+//? function may be usless
 func useRefreshToken(refresh_token string) (string, int, string, int, error) {
 	// get userid from refresh token
 	usrId, err := getUserIdFromRefreshToken(refresh_token)
@@ -128,12 +128,12 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 	act_expt := int(time.Now().Unix()) + 1800
 	// set refresh token expire time to 7d
 	rft_expt := int(time.Now().Unix()) + 604800
-	
+
 	_, err = db.Exec(`
 	INSERT INTO Token VALUES ((?), (?), (?), (?), (?)) 
 	ON DUPLICATE KEY 
 	UPDATE accessToken = (?), act_expt = (?), refreshToken = (?), rft_expt = (?)
-	;`, usrId, act, act_expt, rft, rft_expt, act, act_expt, rft, rft_expt )
+	;`, usrId, act, act_expt, rft, rft_expt, act, act_expt, rft, rft_expt)
 
 	if err != nil {
 		return "", -1, "", -1, err
@@ -282,7 +282,7 @@ func getAccessToken_usrid(access_token string) (int, error) {
 
 	defer db.Close()
 	var ret actData
-	err = db.QueryRow("SELECT userid, accessToken, act_expt FROM Token WHERE accessToken = (?);", access_token).Scan(&ret.User_id, &ret.Access_token, &ret.Act_expt)
+	err = db.QueryRow("SELECT userid, act_expt FROM Token WHERE accessToken = (?);", access_token).Scan(&ret.User_id, &ret.Act_expt)
 
 	if err == sql.ErrNoRows {
 		return -1, nil
@@ -295,17 +295,14 @@ func getAccessToken_usrid(access_token string) (int, error) {
 	//? i think checking for nil is unnecessary
 	// if ret.Access_token != "nil" {
 
-	//check if access token matches 
-	if ret.Access_token == access_token {
-		// check if token is expired
- 		if int(time.Now().Unix()) < ret.Act_expt {
-			// update last login date
-	 		err = updateLoginDate(ret.User_id)
-			if err != nil {
-				return -1, err
-			}
-			return ret.User_id, nil
- 		} 
+	// check if token is expired
+	if int(time.Now().Unix()) < ret.Act_expt {
+		// update last login date
+		err = updateLoginDate(ret.User_id)
+		if err != nil {
+			return -1, err
+		}
+		return ret.User_id, nil
 	}
 	// }
 	return -1, nil
@@ -348,60 +345,90 @@ func backendLogin(usr_id int, password string) (bool, error) {
 func login(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: login")
 
-	err := r.ParseForm()
+	// headerContentTtype := r.Header.Get("Content-Type")
+	// if headerContentTtype != "application/json" {
+	// 	httpError(w, 400, "Content Type is not application/json")
+	// 	return
+	// }
+
+	type ReqData struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		// httpError(w, 500, err)
+		httpError(w, 500, err)
 		return
 	}
 
-	username := validate(r.PostForm.Get("username"))
-	password := validate(r.PostForm.Get("password"))
-
-	usrId, err := getUserId_Usr(username)
+	err = r.ParseForm()
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		// httpError(w, 500, err)
+		httpError(w, 500, err)
+		return
+	}
+
+	email := validate(resp.Email)
+	password := validate(resp.Password)
+
+	// Debugln(email)
+
+	usrId, err := getUserId_Email(email)
+
+	// Debugln(usrId)
+
+	if err != nil {
+		httpError(w, 500, err)
+		// httpError(w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		fmt.Fprintln(w, "{ \"resp_code\":400, error: \"wrong username or password\" }")
+		httpError(w, 400, "wrong email or password")
+		// fmt.Fprintln(w, "{ \"resp_code\":400, error: \"wrong email or password\" }")
 		return
 	}
 
 	ret, err := backendLogin(usrId, password)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
+		// httpError(w, 500, err)
 		return
 	}
 
 	if ret {
 
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			httpError(w, 500, err)
 		}
 
 		act, act_expt, rft, rft_expt, err := generateTokenCouple(usrId)
 
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-			return
-		}
-		
-		err = updateLoginDate(usrId)
-		
-		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			httpError(w, 500, err)
 			return
 		}
 
-		fmt.Fprintf(w, "{ \"resp_code\":200, act_expt:\"%s\", expire_time: %d  refresh_token:\"%s\", rft_expt:%d }", act, act_expt, rft, rft_expt)
+		err = updateLoginDate(usrId)
+
+		if err != nil {
+			httpError(w, 500, err)
+			return
+		}
+
+		httpSuccessf(w, 200, `"act_expt":"%s", "expire_time": %d,  "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
+		// fmt.Fprintf(w, "{ \"resp_code\":200, act_expt:\"%s\", expire_time: %d  refresh_token:\"%s\", rft_expt:%d }", act, act_expt, rft, rft_expt)
 		return
 	}
 
-	fmt.Fprintln(w, "{ \"resp_code\":400, error: \"wrong username or password\" }")
+	httpError(w, 400, "wrong email or password")
 }
 
 // }}}
@@ -410,35 +437,58 @@ func login(w http.ResponseWriter, r *http.Request) {
 func changeUserData(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: change user data")
 
-	err := r.ParseForm()
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(w, 400, "Content Type is not application/json")
+		return
+	}
+
+	type ReqData struct {
+		New_username string `json:"new_username"`
+		New_email    string `json:"new_email"`
+		New_pw       string `json:"new_pw"`
+		Old_pw       string `json:"old_pw"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
+		return
+	}
+
+	err = r.ParseForm()
+
+	if err != nil {
+		httpError(w, 500, err)
 		return
 	}
 
 	act := BearerAuthHeader(r.Header.Get("Authorization"))
-	new_username := validate(r.PostForm.Get("new_username"))
-	new_email := validate(r.PostForm.Get("new_email"))
-	new_pw := validate(r.PostForm.Get("new_password"))
-	old_pw := validate(r.PostForm.Get("password"))
+	new_username := validate(resp.New_username)
+	new_email := validate(resp.New_email)
+	new_pw := validate(resp.New_pw)
+	old_pw := validate(resp.Old_pw)
 
 	usrId, err := getAccessToken_usrid(act)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
+		httpError(w, 400, "invalid access token")
+		// fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
 		return
 	}
 
 	ret, err := backendLogin(usrId, old_pw)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
@@ -451,11 +501,12 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		if new_username != "" {
 			usrid_1, err := getUserId_Usr(new_username)
 			if err != nil {
-				fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+				httpError(w, 500, err)
 				return
 			}
 			if usrid_1 != -1 {
-				fmt.Fprint(w, "{ \"resp_code\":300, error: \"username already exists\" }")
+				httpError(w, 400, "username already exists")
+				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"username already exists\" }")
 				return
 			}
 			q += " username = \"" + new_username + "\","
@@ -465,11 +516,12 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		if new_email != "" {
 			usrid_1, err := getUserId_Email(new_email)
 			if err != nil {
-				fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+				httpError(w, 500, err)
 				return
 			}
 			if usrid_1 != -1 {
-				fmt.Fprint(w, "{ \"resp_code\":300, error: \"account using this email already exists\" }")
+				httpError(w, 400, "account using this email already exists")
+				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"account using this email already exists\" }")
 				return
 			}
 			q += " email = \"" + new_email + "\","
@@ -479,11 +531,12 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		if new_pw != "" {
 			loginState, err := backendLogin(usrId, new_pw)
 			if err != nil {
-				fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+				httpError(w, 500, err)
 				return
 			}
 			if !loginState {
-				fmt.Fprint(w, "{ \"resp_code\":300, error: \"password already in use\" }")
+				httpError(w, 400, "password already in use")
+				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"password already in use\" }")
 				return
 			}
 
@@ -499,7 +552,8 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !sumChangesFlag {
-			fmt.Fprintf(w, "{ \"resp_code\":300, error:\"you need to specify a change\"  }")
+			httpError(w, 400, "you need to specify a change")
+			// fmt.Fprintf(w, "{ \"resp_code\":300, error:\"you need to specify a change\"  }")
 			return
 		}
 
@@ -510,7 +564,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		db, err := sql.Open("mysql", databaseString)
 
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			httpError(w, 500, err)
 			return
 		}
 
@@ -519,15 +573,17 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		_, err = db.Exec(q)
 
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			httpError(w, 500, err)
 			return
 		}
 
-		fmt.Fprint(w, "{ \"resp_code\":200, error: \"data changed successfully\" }")
+		httpSuccess(w, 200, "data changed successfully")
+		// fmt.Fprint(w, "{ \"resp_code\":200, error: \"data changed successfully\" }")
 		return
 	}
 
-	fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
+	httpError(w, 400, "invalid access token")
+	// fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
 }
 
 // }}}
@@ -541,28 +597,31 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 	usrId, err := getAccessToken_usrid(act)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
+		httpError(w, 400, "invalid access token")
+		// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
 		return
 	}
 
 	username, email, date_of_join, err := getUserData(usrId)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
 	if username == "" {
-		fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid wrong id\"  }")
+		httpError(w, 400, "id is empty")
+		// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid wrong id\"  }")
 		return
 	}
 
-	fmt.Fprintf(w, "{ \"resp_code\":200, username: \"%v\", email: \"%v\", date_of_join: \"%v\" }", username, email, date_of_join)
+	httpSuccessf(w, 200, `"username": "%v", "email": "%v", "date_of_join": "%v"`, username, email, date_of_join)
+	// fmt.Fprintf(w, "{ \"resp_code\":200, username: \"%v\", email: \"%v\", date_of_join: \"%v\" }", username, email, date_of_join)
 }
 
 // }}}
@@ -571,30 +630,53 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 func signIn(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: sign in")
 
-	err := r.ParseForm()
-
-	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(w, 400, "Content Type is not application/json")
 		return
 	}
 
-	username := validate(r.PostForm.Get("username"))
-	email := validate(r.PostForm.Get("email"))
-	password := validate(r.PostForm.Get("password"))
+	type ReqData struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Username string `json:"username"`
+	}
+
+	var re ReqData
+
+	err := httpGetBody(r, &re)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	err = r.ParseForm()
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	username := validate(re.Username)
+	email := validate(re.Email)
+	password := validate(re.Password)
 
 	resp, err := addUser(username, email, password)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
 	if !resp {
-		fmt.Fprint(w, "{ \"resp_code\":400 \"error\":\"username or email already in use\" }")
+		httpError(w, 400, "username or email already in use")
+		// fmt.Fprint(w, "{ \"resp_code\":400 \"error\":\"username or email already in use\" }")
 		return
 	}
 
-	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
+	httpSuccess(w, 200, "sign in succesfull")
+	// fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
 }
 
 // }}}
@@ -602,12 +684,12 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 // retrive password {{{
 
 type otpStruct struct {
-	UserId int `db:"userId"`
-	Otp string `db:"otp"`
-	Expt int `db:"expt"`
+	UserId int    `db:"userId"`
+	Otp    string `db:"otp"`
+	Expt   int    `db:"expt"`
 }
 
-func getOtp( ) (string, error) {
+func getOtp() (string, error) {
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -635,124 +717,163 @@ func getOtp( ) (string, error) {
 func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: retrive password (get otp)")
 
-	err := r.ParseForm()
-
-	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(w, 400, "Content Type is not application/json")
 		return
 	}
 
-	vars := mux.Vars(r)
-   email := validate(vars["email"])
-	// email := validate(r.Form.Get("email"))
-	usrId, err := getUserId_Email(email) 
+	type ReqData struct {
+		Email string `json:"email"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
+
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
+		return
+	}
+
+	err = r.ParseForm()
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	// vars := mux.Vars(r)
+	email := validate(resp.Email)
+	// email := validate(r.Form.Get("email"))
+	usrId, err := getUserId_Email(email)
+	if err != nil {
+		httpError(w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		fmt.Fprint(w, "{ \"resp_code\":400, error: \"no user connected to email\" }")
+		httpError(w, 400, "no user connected to email")
+		// fmt.Fprint(w, "{ \"resp_code\":400, error: \"no user connected to email\" }")
 		return
 	}
 
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-		return 
+		httpError(w, 500, err)
+		return
 	}
 
 	defer db.Close()
 
 	expt := int(time.Now().Unix()) + 600
-	
+
 	otp := ""
 	for {
 		otp, err = getOtp()
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			httpError(w, 500, err)
 			return
 		}
 		if otp != "" {
 			break
-		} 
+		}
 	}
 
 	_, err = db.Exec(`
-	INSERT INTO PwOtp VALUES ((?), (?), (?)) 
-	ON DUPLICATE KEY 
+	INSERT INTO PwOtp VALUES ((?), (?), (?))
+	ON DUPLICATE KEY
 	UPDATE userId = (?), otp = (?), expt = (?)
-	;`, usrId, otp, expt, usrId, otp, expt )
+	;`, usrId, otp, expt, usrId, otp, expt)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
-	err = sendEmail( email, "instan-tex otp code", "/n the code is: " + otp )
+	err = sendEmail(email, "instan-tex otp code", "/n the code is: "+otp)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
-	fmt.Fprintf(w, "{ \"resp_code\":200 comment:\"otp sended successfully\" }")
+	httpSuccess(w, 200, "otp sended successfully")
+	// fmt.Fprintf(w, "{ \"resp_code\":200 comment:\"otp sended successfully\" }")
 }
 
 // }}}
-
 
 // use otp password retrival {{{
 func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: retrive password (use otp)")
 
-	err := r.ParseForm()
-
-	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(w, 400, "Content Type is not application/json")
 		return
 	}
 
-	new_password := validate(r.PostForm.Get("new_password"))
+	type ReqData struct {
+		New_pw string `json:"new_password"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	err = r.ParseForm()
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	new_password := validate(resp.New_pw)
 	otp := BearerAuthHeader(r.Header.Get("Authorization"))
 
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-		return 
+		httpError(w, 500, err)
+		return
 	}
 
 	defer db.Close()
-	
+
 	var otpData otpStruct
 
 	err = db.QueryRow("SELECT userId, expt FROM PwOtp WHERE otp = (?);", otp).Scan(&otpData.UserId, &otpData.Expt)
 
 	if err == sql.ErrNoRows {
-		fmt.Fprint(w, "{ \"resp_code\":400, error:\"token does not exists \" }")
+		httpError(w, 400, "token does not exists")
+		// fmt.Fprint(w, "{ \"resp_code\":400, error:\"token does not exists \" }")
 		return
 	}
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-		return 
+		httpError(w, 500, err)
+		return
 	}
 
-	if  int(time.Now().Unix()) > otpData.Expt {
-		fmt.Fprint(w, "{ \"resp_code\":400, error:\"token expired\" }")
+	if int(time.Now().Unix()) > otpData.Expt {
+		httpError(w, 400, "token expired")
+		// fmt.Fprint(w, "{ \"resp_code\":400, error:\"token expired\" }")
 		return
 	}
 
 	// db, err = sql.Open("mysql", databaseString)
 
 	// if err != nil {
-	// 	fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-	// 	return 
+	// 	httpError(w, 500, err)
+	// 	return
 	// }
-
-
 
 	defer db.Close()
 
@@ -763,17 +884,16 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	hash := sha256.Sum256(data)
 	sum := fmt.Sprintf("%x", hash[:])
 
-
 	_, err = db.Exec("UPDATE Users SET salt = (?), pHash = (?) WHERE id = (?) ", salt, sum, otpData.UserId)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(w, 500, err)
 		return
 	}
 
-	fmt.Fprint(w, "{ \"resp_code\":200, comment:\"data changed successfully\" }")
-	return
-}	
+	httpSuccess(w, 200, "data changed successfully")
+	// fmt.Fprint(w, "{ \"resp_code\":200, comment:\"data changed successfully\" }")
+}
 
 // }}}
 

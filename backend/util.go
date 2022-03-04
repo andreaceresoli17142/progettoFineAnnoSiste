@@ -1,7 +1,11 @@
 package main
 
 import ( //{{{
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"regexp"
 	"time"
 ) // }}}
@@ -59,4 +63,51 @@ func RandomInt(n int) int {
 	rand.Seed(time.Now().UnixNano())
 
 	return rand.Int() % n
+}
+
+func httpError(w http.ResponseWriter, code int, msg interface{}) {
+	Errorln(msg)
+	http.Error(w, fmt.Sprintf(`{"code": %d, "msg":"%s"}`, code, fmt.Sprint(msg)), code)
+}
+
+// Access-Control-Allow-Origin: *
+// Access-Control-Allow-Methods: POST,GET,PUT,DELETE
+// Access-Control-Allow-Headers: Authorization, Lang
+
+func httpSuccess(w http.ResponseWriter, code int, s string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	fmt.Fprintf(w, `{"code": %d, %s}`, code, s)
+}
+
+func httpSuccessf(w http.ResponseWriter, code int, s string, args ...interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	rs := fmt.Sprintf(s, args...)
+	fmt.Fprintf(w, `{"code": %d, %s}`, code, rs)
+}
+
+func httpGetBody(r *http.Request, v interface{}) error {
+	b, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(b, &v)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func corsHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("handling Preflight")
+	w.Header().Add("Connection", "keep-alive")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Methods", "POST, OPTIONS, GET, DELETE, PUT")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Access-Control-Max-Age", "86400")
+	w.WriteHeader(200)
 }

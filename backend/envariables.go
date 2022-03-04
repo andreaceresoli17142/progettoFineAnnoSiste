@@ -20,7 +20,7 @@ var email_password string
 var email_server string
 var email_port string
 
-func loadEnv() (bool) {
+func loadEnv() bool {
 	godotenv.Load(".env")
 
 	hostSite, ok := os.LookupEnv("HOST_SITE")
@@ -73,7 +73,7 @@ func loadEnv() (bool) {
 	email_server, ok = os.LookupEnv("EMAIL_SERVER")
 	if !ok {
 		Errorln("missing noreply server from env variables")
-		return false	
+		return false
 	}
 
 	email_port, ok = os.LookupEnv("EMAIL_PORT")
