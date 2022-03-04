@@ -10,7 +10,7 @@ CREATE TABLE Users (
     email VARCHAR(100) NOT NULL,
     date_of_join DATE NOT NULL,
     salt INT NOT NULL,
-    pHash VARCHAR(64) NOT NULL,
+    pHash CHAR(64) NOT NULL,
 	 last_login TIMESTAMP NOT NULL,
     PRIMARY KEY ( id )
 );
@@ -39,16 +39,22 @@ CREATE TABLE Conversations (
 
 CREATE TABLE Token (
     userid INT NOT NULL,
-    accessToken VARCHAR(64) NOT NULL,
+    accessToken CHAR(64) NOT NULL,
     act_expt INT NOT NULL,
-    refreshToken VARCHAR(64) NOT NULL,
+    refreshToken CHAR(64) NOT NULL,
 	 rft_expt INT NOT NULL,
     PRIMARY KEY ( userid )
 );
 
+CREATE TABLE PwOtp (
+	userId INT NOT NULL,
+	otp CHAR(32) NOT NULL,
+	expt INT NOT NULL,
+	PRIMARY KEY (userId)
+);
 
 CREATE TABLE LoginState (
-    idstring VARCHAR(15) NOT NULL,
+    idstring CHAR(15) NOT NULL,
     PRIMARY KEY ( idstring )
 );
 

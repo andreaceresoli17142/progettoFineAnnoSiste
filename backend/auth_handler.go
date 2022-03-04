@@ -597,3 +597,106 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 }
 
 // }}}
+
+// retrive password {{{
+
+type otpStruct struct {
+	UserId int `db:"userId"`
+	Otp string `db:"otp"`
+	Expt int `db:"expt"`
+}
+
+func getOtp() (string, err) ( string, err ) {
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		return "", err
+	}
+
+	defer db.Close()
+	otp = RandomString(32)
+	var o otpStruct
+	err = db.QueryRow("SELECT otp FROM Users WHERE otp = (?);", otp).Scan(&o.Otp)
+
+	if err == sql.ErrNoRows {
+		return otp, nil
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return "", nil
+}
+
+func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: sign in")
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	email := validate(r.PostForm.Get("email"))
+
+	usrId, err := getUsrId_Email(email) 
+	
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	if usrId != -1 {
+		fmt.Fprintf(w, "{ \"resp_code\":400, error: \"no user connected to email\" }", err)
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return 
+	}
+
+	defer db.Close()
+
+	expt := int(time.Now().Unix()) + 60
+	
+	otp = ""
+	for {
+		otp, err := getOtp()
+		if err != nil {
+			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			return
+		}
+		if otp != ""{
+			break
+		} 
+	}
+	_, err = db.Exec(`
+	INSERT INTO PwOtp VALUES ((?), (?), (?)) 
+	ON DUPLICATE KEY 
+	UPDATE userId = (?), otp = (?), expt = (?)
+	;`, usrId, otp, expt, usrId, otp, expt )
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, nil
+	}
+
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
+}
+
+// }}}
