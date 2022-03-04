@@ -298,6 +298,66 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Fprintf(w, "{ \"resp_code\":200, username: \"%v\", email: \"%v\", date_of_join: \"%v\" }", username, email, date_of_join)
 } // }}}
 
+// retrieve password {{{
+func send_otp_retrivePassword (w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: send retrive password token")
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	// username := validate(r.PostForm.Get("username"))
+	email := validate(r.PostForm.Get("email"))
+
+
+	if email == "" {
+		fmt.Fprintf(w, "{ \"resp_code\":400, error: \"missing username and password\" }", err)
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		return false, err
+	}
+
+	defer db.Close()
+	var loginData UserData
+	// q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id)
+	err = db.QueryRow("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id).Scan(&loginData.Salt, &loginData.PHash)
+
+	if err == sql.ErrNoRows {
+		// fmt.Fprint(w, "{ \"resp_code\":400, error:\"username does not exist\" }")
+		return false, nil
+	}
+
+	if err != nil {
+		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		return false, nil
+	}
+
+		
+}
+
+func get_otp_retrivePassword (w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: send retrive password token")
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		return
+	}
+
+	// username := validate(r.PostForm.Get("username"))
+	email := validate(r.PostForm.Get("email"))
+}
+//}}*
+
 func signIn(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Println("endpoint hit: sign in")
 
