@@ -11,7 +11,7 @@ CREATE TABLE Users (
     date_of_join DATE NOT NULL,
     salt INT NOT NULL,
     pHash CHAR(64) NOT NULL,
-	 last_login TIMESTAMP NOT NULL,
+	last_login TIMESTAMP NOT NULL,
     PRIMARY KEY ( id )
 );
 
@@ -26,14 +26,14 @@ CREATE TABLE ConversationName (
 	id INT NOT NULL AUTO_INCREMENT,
 	name VARCHAR(30) NOT NULL,
 	description TEXT,
-	date_of_creation DATE NOT NULL DEFAULT CURRENT_DATE ,
+	date_of_creation DATE NOT NULL DEFAULT CURRENT_DATE,
 	PRIMARY KEY ( id )
 );
 
 CREATE TABLE Conversations (
     id INT NOT NULL,
     participantId INT NOT NULL,
-    date_of_join DATE NOT NULL DEFAULT CURRENT_DATE ,
+    date_of_join DATE NOT NULL DEFAULT CURRENT_DATE,
     PRIMARY KEY ( id, participantId )
 );
 
@@ -42,7 +42,7 @@ CREATE TABLE Token (
     accessToken CHAR(64) NOT NULL,
     act_expt INT NOT NULL,
     refreshToken CHAR(64) NOT NULL,
-	 rft_expt INT NOT NULL,
+	rft_expt INT NOT NULL,
     PRIMARY KEY ( userid )
 );
 

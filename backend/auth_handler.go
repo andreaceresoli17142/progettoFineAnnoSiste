@@ -22,17 +22,18 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 	act, a_expt, rft, r_expt, err := useRefreshToken(reft)
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		httpError(w, 500, err.Error())
 		return
 	}
 
 	if act != "" {
-		httpSuccessf(w, 200, `"access_token":\"%s\", "act_expt": %d  "refresh_token":\"%s\", "rft_expt":%d`, act, a_expt, rft, r_expt)
+		httpSuccessf(w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, a_expt, rft, r_expt)
 		// fmt.Fprintf(w, "{ \"resp_code\":200, access_token:\"%s\", act_expt: %d  refresh_token:\"%s\", rft_expt:%d }", act, a_expt, rft, r_expt)
 		return
 	}
 
-	fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid refresh token\" }")
+	httpError(w, 400, "invalid refresh token")
+	// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid refresh token\" }")
 }
 
 func getUserIdFromRefreshToken(refresh_token string) (int, error) {
@@ -130,8 +131,8 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 	rft_expt := int(time.Now().Unix()) + 604800
 
 	_, err = db.Exec(`
-	INSERT INTO Token VALUES ((?), (?), (?), (?), (?)) 
-	ON DUPLICATE KEY 
+	INSERT INTO Token VALUES ((?), (?), (?), (?), (?))
+	ON DUPLICATE KEY
 	UPDATE accessToken = (?), act_expt = (?), refreshToken = (?), rft_expt = (?)
 	;`, usrId, act, act_expt, rft, rft_expt, act, act_expt, rft, rft_expt)
 
@@ -423,7 +424,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		httpSuccessf(w, 200, `"act_expt":"%s", "expire_time": %d,  "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
+		httpSuccessf(w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
 		// fmt.Fprintf(w, "{ \"resp_code\":200, act_expt:\"%s\", expire_time: %d  refresh_token:\"%s\", rft_expt:%d }", act, act_expt, rft, rft_expt)
 		return
 	}

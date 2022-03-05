@@ -70,14 +70,10 @@ func httpError(w http.ResponseWriter, code int, msg interface{}) {
 	http.Error(w, fmt.Sprintf(`{"code": %d, "msg":"%s"}`, code, fmt.Sprint(msg)), code)
 }
 
-// Access-Control-Allow-Origin: *
-// Access-Control-Allow-Methods: POST,GET,PUT,DELETE
-// Access-Control-Allow-Headers: Authorization, Lang
-
 func httpSuccess(w http.ResponseWriter, code int, s string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	fmt.Fprintf(w, `{"code": %d, %s}`, code, s)
+	fmt.Fprintf(w, `{"code": %d, "msg":"%s"}`, code, s)
 }
 
 func httpSuccessf(w http.ResponseWriter, code int, s string, args ...interface{}) {
@@ -100,14 +96,4 @@ func httpGetBody(r *http.Request, v interface{}) error {
 		return err
 	}
 	return nil
-}
-
-func corsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("handling Preflight")
-	w.Header().Add("Connection", "keep-alive")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Access-Control-Allow-Methods", "POST, OPTIONS, GET, DELETE, PUT")
-	w.Header().Add("Access-Control-Allow-Headers", "content-type")
-	w.Header().Add("Access-Control-Max-Age", "86400")
-	w.WriteHeader(200)
 }

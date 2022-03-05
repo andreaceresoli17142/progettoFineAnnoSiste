@@ -25,15 +25,14 @@ services:
       dockerfile: Dockerfile
     ports:
       - 8080:8080
-    #  frontend:
-    #container_name: frontend
-    #hostname: frontend
-    #build:
-    #  context: ./frontend
-    #  dockerfile: Dockerfile
-    #ports:
-    #  - 80:80
-# 1. "/etc/mysql/mariadb.cnf" (this file) to set global defaults,
-# 2. "/etc/mysql/conf.d/*.cnf" to set global options.
-# 3. "" to set MariaDB-only options.
-# 4. "~/.my.cnf" to set user-specific options.
+  frontend:
+    container_name: frontend
+    hostname: frontend
+    image: nginx:latest
+    volumes:
+      - './frontend/fe/:/usr/share/nginx/html'
+    # build:
+    #   context: ./frontend
+    #   dockerfile: Dockerfile
+    ports:
+      - 80:80

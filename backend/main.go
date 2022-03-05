@@ -281,27 +281,41 @@ func test(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Fprintf(w, "user id: %d", t)
 } // }}}
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// log.Println("Executing middleware", r.Method)
+
+		if r.Method == "OPTIONS" {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Set("Content-Type", "application/json")
+			return
+		}
+
+		next.ServeHTTP(w, r)
+		// log.Println("Executing middleware again")
+	})
+}
+
 // route endpoints {{{
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
+
 	authRouter := myRouter.PathPrefix("/auth").Subrouter()
 	myRouter.HandleFunc("/", homePage) //.Schemes("https")
 	authRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 	authRouter.HandleFunc("/login", login).Methods("POST")
-	// authRouter.HandleFunc("/login", corsHandler).Methods("OPTIONS")
 	myRouter.HandleFunc("/test", test)
-	authRouter.HandleFunc("/refreshtoken", refreshTokenReq).Methods("POST")
+	authRouter.HandleFunc("/userft", refreshTokenReq).Methods("POST")
 	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET")
 	myRouter.HandleFunc("/signin", signIn).Methods("POST")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
 	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET")
 	myRouter.HandleFunc("/retrivepw/getotp", send_otp_retrivePassword).Methods("GET")
 	myRouter.HandleFunc("/retrivepw/useotp", use_otp_retrivePassword).Methods("POST")
-	// myRouter.HandleFunc("/testActV", testActV).Methods("POST")
-	// myRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
 
-	log.Fatal(http.ListenAndServe(":8080", myRouter))
-	// log.Fatal(http.ListenAndServeTLS(":8080", "https-server.crt", "https-server.key", myRouter))
+	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}
 
 func main() { // {{{
@@ -317,20 +331,6 @@ func main() { // {{{
 	if !ok {
 		log.Fatal("error getting file directory")
 	}
-
-	// content, err := ioutil.ReadFile("./oauthTokens.json")
-	// if err != nil {
-	// 	log.Fatal("Error when opening file: ", err)
-	// }
-
-	// var payload map[string]string
-	// err = json.Unmarshal(content, &payload)
-	// if err != nil {
-	// 	log.Fatal("Error during Unmarshal(): ", err)
-	// }
-
-	// clientId = payload["userid"]
-	// clientSecret = payload["usersecret"]
 
 	Successln("GO server started")
 	handleRequests()

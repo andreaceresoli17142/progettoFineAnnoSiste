@@ -1,3 +1,2 @@
-FROM php:7.0-apache
-ADD fe /var/www/html
-EXPOSE 80
+FROM nginx
+COPY fe /usr/share/nginx/html
