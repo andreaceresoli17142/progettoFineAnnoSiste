@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<title>Login V11</title>
+	<title>Login</title>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 <!--===============================================================================================-->
@@ -31,6 +31,8 @@
 
 		var checkBoxStatus = false;
 
+		var pwTries = 0
+
 		$(document).on('click','#ckb1:checked',function(e){
 			checkBoxStatus = !checkBoxStatus;
 		});
@@ -58,6 +60,7 @@
 			// console.log(result)
 			ret = JSON.parse(result)
 			if (ret.code != 200) {
+
 				document.getElementById("ret").innerHTML = `
 					<div class="alert alert-danger" role="alert">
 						${ret.msg}
@@ -100,8 +103,24 @@
 		}
 
 		function submitForm(){
+			pwTries++
 			var email = document.getElementById("email").value
 			var password = document.getElementById("pass").value
+
+			if (pwTries > 2){
+				document.getElementById("pwres").innerHTML = `
+				<span class="txt1">
+					forgot password?
+					</span>
+
+					<a class="txt1 bo1 hov1" href="../changePw-getOtp/index.html">
+						Reset it!
+					</a>`
+			}
+
+			if (email == "" || password == "" ){
+				return
+			}
 
 			return login(email, password)
 		}
@@ -111,7 +130,7 @@
 			if (ret.code == 200) {
 				setCookie( "act", ret.access_token, ret.act_expt )
 				setCookie( "rft", ret.refresh_token, ret.rft_expt )
-				window.location.replace("../privateArea/index.html");
+				window.location.replace("../privateArea/index.html")
 				return
 			}
 			else{
@@ -187,6 +206,10 @@
 						<label class="label-checkbox100" for="ckb1">
 							Remember me
 						</label>
+					</div>
+
+					<div id="pwres" class="text-center w-full">
+
 					</div>
 
 					<div class="container-login100-form-btn p-t-25">
