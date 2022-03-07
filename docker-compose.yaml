@@ -17,7 +17,7 @@ services:
       - './mariadb/data/:/var/lib/mysql'
       - './mariadb/createTables.sql:/ct.sql'
     ports:
-      - 3306
+      - "3306:3306"
   backend:
     container_name: backend
     build:
