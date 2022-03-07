@@ -312,8 +312,9 @@ func handleRequests() {
 	myRouter.HandleFunc("/signin", signIn).Methods("POST")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
 	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET")
-	myRouter.HandleFunc("/retrivepw/getotp", send_otp_retrivePassword).Methods("GET")
-	myRouter.HandleFunc("/retrivepw/useotp", use_otp_retrivePassword).Methods("POST")
+	pwrRouter := myRouter.PathPrefix("/pwr").Subrouter()
+	pwrRouter.HandleFunc("/getotp", send_otp_retrivePassword).Methods("GET")
+	pwrRouter.HandleFunc("/useotp", use_otp_retrivePassword).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}
