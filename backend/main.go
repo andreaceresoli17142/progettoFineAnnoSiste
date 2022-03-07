@@ -322,6 +322,8 @@ func handleRequests() {
 
 func main() { // {{{
 
+	// sendEmail("andrea.ceresoli03", )
+
 	// Debugf("%T", regexp.MustCompile(`[\\\/\<\>\"\']*`))
 
 	// load enviroment variables

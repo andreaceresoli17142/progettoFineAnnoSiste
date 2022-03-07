@@ -853,7 +853,7 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = sendEmail(email, "instan-tex otp code", "/n the code is: "+otp)
+	err = sendEmail(email, "instan-tex otp code", "\n the code is: "+otp)
 
 	if err != nil {
 		httpError(w, 500, err)
