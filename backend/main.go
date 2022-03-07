@@ -270,7 +270,8 @@ func test(w http.ResponseWriter, r *http.Request) { // {{{
 		return
 	}
 
-	act := validate(r.PostForm.Get("act"))
+	act, _ := validate(r.PostForm.Get("act"), "")
+
 	t, err := getAccessToken_usrid(act)
 
 	if err != nil {
@@ -285,13 +286,13 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// log.Println("Executing middleware", r.Method)
 
-		// if r.Method == "OPTIONS" {
-		// 	w.Header().Set("Access-Control-Allow-Origin", "*")
-		// 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-		// 	w.Header().Set("Access-Control-Allow-Headers", "*")
-		// 	w.Header().Set("Content-Type", "application/json")
-		// 	return
-		// }
+		if r.Method == "OPTIONS" {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Set("Content-Type", "application/json")
+			return
+		}
 
 		next.ServeHTTP(w, r)
 		// log.Println("Executing middleware again")
@@ -313,13 +314,15 @@ func handleRequests() {
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
 	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET")
 	pwrRouter := myRouter.PathPrefix("/pwr").Subrouter()
-	pwrRouter.HandleFunc("/getotp", send_otp_retrivePassword).Methods("GET")
+	pwrRouter.HandleFunc("/getotp/{email}", send_otp_retrivePassword).Methods("GET")
 	pwrRouter.HandleFunc("/useotp", use_otp_retrivePassword).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}
 
 func main() { // {{{
+
+	// Debugf("%T", regexp.MustCompile(`[\\\/\<\>\"\']*`))
 
 	// load enviroment variables
 	ok := loadEnv()

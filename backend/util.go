@@ -40,11 +40,34 @@ type Conversation struct {
 
 // }}}
 
-func validate(input string) string {
+var validateEmail string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-@]*$`
+var validatePass string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-]{8,}$`
+var validateUser string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-]{5,}$`
+
+var vPassErr string = "password must be at least 8 characters long"
+var vUserErr string = "username must be at least 6 characters long"
+var vEmailErr string = "email is not valid"
+
+//! orribile, da cambiare
+func validate(input string, regex string) (string, bool) {
 	// remove " ' < > / \ to validate user input
 	re := regexp.MustCompile(`[\\\/\<\>\"\']*`)
 
-	return re.ReplaceAllString(input, "")
+	ok := false
+
+	if regex != "" {
+		var err error
+		ok, err = regexp.Match(regex, []byte(input))
+		// Debugf("ok? %v, err %v", ok, err)
+		if err != nil {
+			ok = false
+		}
+	} else {
+		ok = true
+	}
+	// Debugf("ok? %v", ok)
+
+	return re.ReplaceAllString(input, ""), ok
 }
 
 func RandomString(n int) string {
@@ -66,7 +89,7 @@ func RandomInt(n int) int {
 }
 
 func httpError(w http.ResponseWriter, code int, msg interface{}) {
-	Errorln(msg)
+	Debugln(msg)
 	http.Error(w, fmt.Sprintf(`{"code": %d, "msg":"%s"}`, code, fmt.Sprint(msg)), code)
 }
 

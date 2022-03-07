@@ -9,6 +9,7 @@ import ( // {{{
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 ) // }}}
 
 // using refresh token {{{
@@ -267,7 +268,9 @@ func BearerAuthHeader(authHeader string) string {
 		return ""
 	}
 
-	return validate(token)
+	ret, _ := validate(token, "")
+
+	return ret
 }
 
 //}}}
@@ -375,8 +378,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := validate(resp.Email)
-	password := validate(resp.Password)
+	email, ok := validate(resp.Email, "")
+
+	if !ok {
+		httpError(w, 400, vEmailErr)
+		return
+	}
+
+	password, ok := validate(resp.Password, validatePass)
+
+	if !ok {
+		httpError(w, 400, vPassErr)
+		return
+	}
 
 	// Debugln(email)
 
@@ -468,10 +482,33 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	act := BearerAuthHeader(r.Header.Get("Authorization"))
-	new_username := validate(resp.New_username)
-	new_email := validate(resp.New_email)
-	new_pw := validate(resp.New_pw)
-	old_pw := validate(resp.Old_pw)
+	new_username, ok := validate(resp.New_username, validateUser)
+
+	if !ok {
+		httpError(w, 400, vUserErr)
+		return
+	}
+
+	new_email, ok := validate(resp.New_email, "")
+
+	if !ok {
+		httpError(w, 400, vEmailErr)
+		return
+	}
+
+	new_pw, ok := validate(resp.New_pw, validatePass)
+
+	if !ok {
+		httpError(w, 400, vPassErr)
+		return
+	}
+
+	old_pw, ok := validate(resp.Old_pw, validatePass)
+
+	if !ok {
+		httpError(w, 400, vPassErr)
+		return
+	}
 
 	usrId, err := getAccessToken_usrid(act)
 
@@ -659,9 +696,26 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := validate(re.Username)
-	email := validate(re.Email)
-	password := validate(re.Password)
+	username, ok := validate(re.Username, validateUser)
+	// Debugln(ok)
+	if !ok {
+		httpError(w, 400, vUserErr)
+		return
+	}
+
+	email, ok := validate(re.Email, "")
+
+	if !ok {
+		httpError(w, 400, vEmailErr)
+		return
+	}
+
+	password, ok := validate(re.Password, validatePass)
+
+	if !ok {
+		httpError(w, 400, vPassErr)
+		return
+	}
 
 	resp, err := addUser(username, email, password)
 
@@ -718,34 +772,40 @@ func getOtp() (string, error) {
 func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: retrive password (get otp)")
 
-	headerContentTtype := r.Header.Get("Content-Type")
-	if headerContentTtype != "application/json" {
-		httpError(w, 400, "Content Type is not application/json")
-		return
-	}
+	// headerContentTtype := r.Header.Get("Content-Type")
+	// if headerContentTtype != "application/json" {
+	// 	httpError(w, 400, "Content Type is not application/json")
+	// 	return
+	// }
 
-	type ReqData struct {
-		Email string `json:"email"`
-	}
+	// type ReqData struct {
+	// 	Email string `json:"email"`
+	// }
 
-	var resp ReqData
+	// var resp ReqData
 
-	err := httpGetBody(r, &resp)
+	// err := httpGetBody(r, &resp)
+
+	// if err != nil {
+	// 	httpError(w, 500, err)
+	// 	return
+	// }
+
+	err := r.ParseForm()
 
 	if err != nil {
 		httpError(w, 500, err)
 		return
 	}
 
-	err = r.ParseForm()
+	vars := mux.Vars(r)
+	email, ok := validate(vars["email"], "")
 
-	if err != nil {
-		httpError(w, 500, err)
+	if !ok {
+		httpError(w, 400, vEmailErr)
 		return
 	}
 
-	// vars := mux.Vars(r)
-	email := validate(resp.Email)
 	// email := validate(r.Form.Get("email"))
 	usrId, err := getUserId_Email(email)
 	if err != nil {
@@ -768,7 +828,7 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 
 	defer db.Close()
 
-	expt := int(time.Now().Unix()) + 600
+	expt := int(time.Now().Unix()) + 60
 
 	otp := ""
 	for {
@@ -836,7 +896,13 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	new_password := validate(resp.New_pw)
+	new_password, ok := validate(resp.New_pw, validatePass)
+
+	if !ok {
+		httpError(w, 400, vPassErr)
+		return
+	}
+
 	otp := BearerAuthHeader(r.Header.Get("Authorization"))
 
 	db, err := sql.Open("mysql", databaseString)

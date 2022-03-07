@@ -18,7 +18,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	// err := r.ParseForm()
 
-	// if err != nil {
+	// if err != nil
 	// 	fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
 	// 	return
 	// }
