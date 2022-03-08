@@ -12,6 +12,7 @@ import ( // {{{
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 ) // }}}
 
@@ -282,22 +283,22 @@ func test(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Fprintf(w, "user id: %d", t)
 } // }}}
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// log.Println("Executing middleware", r.Method)
+// func corsMiddleware(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		// log.Println("Executing middleware", r.Method)
 
-		if r.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			w.Header().Set("Content-Type", "application/json")
-			return
-		}
+// 		// if r.Method == "OPTIONS" {
+// 		// 	w.Header().Set("Access-Control-Allow-Origin", "*")
+// 		// 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+// 		// 	w.Header().Set("Access-Control-Allow-Headers", "*")
+// 		// 	w.Header().Set("Content-Type", "application/json")
+// 		// 	return
+// 		// }
 
-		next.ServeHTTP(w, r)
-		// log.Println("Executing middleware again")
-	})
-}
+// 		next.ServeHTTP(w, r)
+// 		// log.Println("Executing middleware again")
+// 	})
+// }
 
 // route endpoints {{{
 func handleRequests() {
@@ -317,7 +318,12 @@ func handleRequests() {
 	pwrRouter.HandleFunc("/getotp/{email}", send_otp_retrivePassword).Methods("GET")
 	pwrRouter.HandleFunc("/useotp", use_otp_retrivePassword).Methods("POST")
 
-	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "POST"})
+	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(myRouter)))
+
+	// log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}
 
 func main() { // {{{
