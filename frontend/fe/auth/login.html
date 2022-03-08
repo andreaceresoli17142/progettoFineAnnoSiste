@@ -158,6 +158,28 @@
 			.then(result => handleResultsRft(result));
 		}
 
+		function oauthRedir() {
+			console.log("is this working?")
+			var requestOptions = {
+				method: 'GET',
+				redirect: 'follow'
+			};
+
+			fetch("http://localhost:8080/oauth/getlink", requestOptions)
+			.then(response => response.text())
+			.then(result => {
+				ret = JSON.parse(result)
+				if (ret.code == 200) {
+					// console.log(result)
+					setCookie("oauthState", ret.state, Math.floor(Date.now() / 1000) + 1800)
+					window.location.replace(ret.link);
+				}
+				console.log(result)
+			}
+			)
+			.catch(error => console.log('error', error));
+		}
+
 		function tryLogin() {
             var act = getCookie("act")
 
@@ -227,10 +249,10 @@
 
 
 					<div class="container-login100-form-btn p-t-25">
-						<a href="#" class="btn-google m-b-10">
+						<button onclick="oauthRedir()" class="btn-google m-b-10">
 							<img src="images/icons/icon-google.png" alt="GOOGLE">
 							Google
-						</a>
+						</button>
 					</div>
 
 					<div class="container-login100-form-btn p-t-25" id="ret">

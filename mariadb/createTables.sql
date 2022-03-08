@@ -55,13 +55,14 @@ CREATE TABLE PwOtp (
 
 CREATE TABLE LoginState (
     idstring CHAR(15) NOT NULL,
+    userEmail VARCHAR(45),
     PRIMARY KEY ( idstring )
 );
 
 
-INSERT INTO Users ( username, email, date_of_join, salt, pHash, last_login ) VALUES ( "pima", "pippo.mario@gimelli.com", CURRENT_DATE(), 123456, "62d18522b74d75b2a84776c91ba5498377441d4c4af0cea22ca7de9e09475d3a", CURRENT_TIMESTAMP() );
+INSERT INTO Users ( username, email, date_of_join, salt, pHash, last_login ) VALUES ( "pima", "pippo.mario@gimelli.com", CURRENT_DATE(), 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP() );
 
-INSERT INTO Users ( username, email, date_of_join ,salt, pHash, last_login) VALUES ( "taurone", "taurone.mario@gimelli.com", CURRENT_DATE(), 123456, "62d18522b74d75b2a84776c91ba5498377441d4c4af0cea22ca7de9e09475d3a", CURRENT_TIMESTAMP());
+INSERT INTO Users ( username, email, date_of_join ,salt, pHash, last_login) VALUES ( "taurone", "taurone.mario@gimelli.com", CURRENT_DATE(), 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP());
 
 INSERT INTO ConversationName ( name, description  ) VALUES ( "gruppo tennici (senza taurone)", "tutti i miei amici odiano taurone" );
 

@@ -17,26 +17,6 @@ import ( // {{{
 
 var fileDir string
 
-// const hostSite = "http://localhost:8080/"
-// const sqlServerIp = "172.18.0.2:3306"
-
-// var clientId string = ""
-// var clientSecret string = ""
-// var redirectUri string = hostSite + "oauth"
-
-// type OauthResp struct {
-// 	AccessToken string `json:"access_token"`
-// }
-
-// type UserData struct {
-// 	Id           int    `db:"id"`
-// 	Username     string `db:"username"`
-// 	Email        string `db:"email"`
-// 	Date_of_join string `db:"date_of_join"`
-// 	Salt         int    `db:"salt"`
-// 	PHash        string `db:"pHash"`
-// }
-
 func addState(state string) error { // {{{
 
 	db, err := sql.Open("mysql", databaseString)
@@ -47,10 +27,9 @@ func addState(state string) error { // {{{
 
 	defer db.Close()
 
-	q := fmt.Sprintf("INSERT INTO LoginState (idstring) VALUES (\"%s\");", state)
-
-	_, err = db.Exec(q)
+	_, err = db.Exec(`INSERT INTO LoginState VALUES (?, null)`, state)
 	if err != nil {
+		Debugf("oh hi there")
 		return err
 	}
 	return nil
@@ -60,15 +39,13 @@ func findState(state string) (string, error) { // {{{
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		log.Println("aaa")
 		return "false", err
 	}
 
 	defer db.Close()
 
 	var str string
-	q := fmt.Sprintf("SELECT * FROM LoginState WHERE idstring = \"%s\";", state)
-	err = db.QueryRow(q).Scan(&str)
+	err = db.QueryRow(`SELECT idstring FROM LoginState WHERE idstring = ?`, state).Scan(&str)
 
 	if err == sql.ErrNoRows {
 		return "", nil
@@ -99,6 +76,217 @@ func remState(state string) error { // {{{
 	return nil
 } // }}}
 
+func oauthGetTokenCouple(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: oauth get token couple")
+
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(w, 400, "Content Type is not application/json")
+		return
+	}
+
+	// type ReqData struct {
+	// 	State string `json:"state"`
+	// }
+	// var re ReqData
+
+	// err := httpGetBody(r, &re)
+
+	// if err != nil {
+	// 	httpError(w, 500, err)
+	// 	return
+	// }
+
+	// state, ok := validate(re.State, "")
+
+	err := r.ParseForm()
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	vars := mux.Vars(r)
+	state, ok := validate(vars["state"], "")
+
+	if !ok {
+		httpError(w, 400, "error validating state")
+		return
+	}
+
+	// get email
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	defer db.Close()
+
+	var str string
+	err = db.QueryRow(`SELECT userEmail FROM LoginState WHERE idstring = ?`, state).Scan(&str)
+
+	if err == sql.ErrNoRows {
+		httpError(w, 500, err)
+		return
+	}
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	// finished getting email
+
+	usrId, err := getUserId_Email(str)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	act, act_expt, rft, rft_expt, err := generateTokenCouple(usrId)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	err = updateLoginDate(usrId)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	httpSuccessf(w, 200, `"access_token":"%s", "act_expt": %d, "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
+}
+
+func signInOauth(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: oauth sign in")
+
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(w, 400, "Content Type is not application/json")
+		return
+	}
+
+	type ReqData struct {
+		State    string `json:"state"`
+		Password string `json:"password"`
+		Username string `json:"username"`
+	}
+
+	var re ReqData
+
+	err := httpGetBody(r, &re)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	// err = r.ParseForm()
+
+	// if err != nil {
+	// 	httpError(w, 500, err)
+	// 	return
+	// }
+
+	username, ok := validate(re.Username, validateUser)
+	// Debugln(ok)
+	if !ok {
+		httpError(w, 400, vUserErr)
+		return
+	}
+
+	state, ok := validate(re.State, "")
+	// Debugln(ok)
+	if !ok {
+		httpError(w, 400, "error validating state")
+		return
+	}
+
+	// get email
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	defer db.Close()
+
+	var str string
+	err = db.QueryRow(`SELECT userEmail FROM LoginState WHERE idstring = ?`, state).Scan(&str)
+
+	if err == sql.ErrNoRows {
+		httpError(w, 500, err)
+		return
+	}
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	// finished getting email
+
+	email, ok := validate(str, "")
+
+	if !ok {
+		httpError(w, 400, vEmailErr)
+		return
+	}
+
+	password, ok := validate(re.Password, validatePass)
+
+	if !ok {
+		httpError(w, 400, vPassErr)
+		return
+	}
+
+	resp, err := addUser(username, email, password)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	if !resp {
+		httpError(w, 400, "username or email already in use")
+		// fmt.Fprint(w, "{ \"resp_code\":400 \"error\":\"username or email already in use\" }")
+		return
+	}
+
+	usrId, err := getUserId_Email(email)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	act, act_expt, rft, rft_expt, err := generateTokenCouple(usrId)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	err = updateLoginDate(usrId)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	httpSuccessf(w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
+
+	// httpSuccess(w, 200, "sign in succesfull")
+	// fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
+}
+
 func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	query := r.URL.Query()
 	state, code := query.Get("state"), query.Get("code")
@@ -107,7 +295,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	ret, err := findState(state)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
@@ -115,12 +303,12 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 		return
 	}
 
-	err = remState(state)
+	// err = remState(state)
 
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	// if err != nil {
+	// 	httpError(w, 500, err)
+	// 	return
+	// }
 
 	payload := strings.NewReader(fmt.Sprintf(`{"grant_type":"%s" , "code":"%s", "redirect_uri":"%s", "client_id":"%s", "client_secret":"%s" }`, "authorization_code", code, redirectUri, clientId, clientSecret))
 
@@ -134,14 +322,14 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	defer resp.Body.Close()
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
@@ -150,7 +338,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	err = json.Unmarshal(body, &respData)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
@@ -159,7 +347,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	req, err = http.NewRequest("GET", url, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
@@ -169,7 +357,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	res, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
@@ -177,7 +365,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	body, err = ioutil.ReadAll(res.Body)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
@@ -185,41 +373,62 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) { // {{{
 	err = json.Unmarshal(body, &resp1Data)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
 	email := resp1Data.Email
 
-	userId, err := getUserId_Email(email)
+	// pair state with email
+
+	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
 
-	username, email, date_of_join, err := getUserData(userId)
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE LoginState SET userEmail = ? WHERE idstring = ?", email, state)
 
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
+		return
+	}
+
+	// redirect user
+
+	userId, err := getUserId_Email(email)
+
+	if err != nil {
+		httpError(w, 500, err)
+		return
+	}
+
+	username, _, _, err := getUserData(userId)
+
+	if err != nil {
+		httpError(w, 500, err)
 		return
 	}
 
 	if username == "" {
-		fmt.Fprint(w, "user not registered yet")
+		http.Redirect(w, r, "http://localhost/signUp/oauth.html", http.StatusMovedPermanently)
 		return
 	}
 
-	fmt.Fprintf(w, "private area: \n\tusername: %s \n\temail: %s \n\tdate of join: %s", username, email, date_of_join)
+	http.Redirect(w, r, "http://localhost/getoauthtk.html", http.StatusMovedPermanently)
 } // }}}
 
 func getOauthLink(w http.ResponseWriter, r *http.Request) { // {{{
+	fmt.Println("endpoint hit: getlink")
 	var state string
 	for {
 		state = RandomString(15)
 		ret, err := findState(state)
 		if err != nil {
-			fmt.Println(err)
+			httpError(w, 500, err)
 			return
 		}
 		if ret == "" {
@@ -228,11 +437,10 @@ func getOauthLink(w http.ResponseWriter, r *http.Request) { // {{{
 	}
 	err := addState(state)
 	if err != nil {
-		fmt.Println(err)
+		httpError(w, 500, err)
 		return
 	}
-	fmt.Println("endpoint hit: home")
-	fmt.Fprintf(w, "{resp_code:\"200\"  link:\"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v\"}", clientId, state, redirectUri)
+	httpSuccessf(w, 200, `"state":"%v", "link":"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v"`, state, clientId, state, redirectUri)
 } // }}}
 
 func homePage(w http.ResponseWriter, r *http.Request) { // {{{
@@ -299,7 +507,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		if r.Method == "OPTIONS" {
 			headers := strings.Join(r.Header["Access-Control-Request-Headers"], ",")
-			fmt.Println("HEADERS", headers)
+			// fmt.Println("HEADERS", headers)
 			w.Header().Set("Access-Control-Allow-Headers", headers)
 			return
 		}
@@ -319,8 +527,13 @@ func handleRequests() {
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
 	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET", "OPTIONS")
 
+	oauthRouter := myRouter.PathPrefix("/oauth").Subrouter()
+	oauthRouter.HandleFunc("/", paleoIdAuth).Methods("GET", "OPTIONS")
+	oauthRouter.HandleFunc("/getlink", getOauthLink).Methods("GET", "OPTIONS")
+	oauthRouter.HandleFunc("/signin", signInOauth).Methods("POST", "OPTIONS")
+	oauthRouter.HandleFunc("/gettkcoup/{state}", oauthGetTokenCouple).Methods("GET", "OPTIONS")
+
 	authRouter := myRouter.PathPrefix("/auth").Subrouter()
-	authRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET", "OPTIONS")
 	authRouter.HandleFunc("/login", login).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/userft", refreshTokenReq).Methods("POST", "OPTIONS")
 

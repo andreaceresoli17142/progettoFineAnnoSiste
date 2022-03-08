@@ -35,41 +35,51 @@
 
 	<script>
 
+
+
 		var checkBoxStatus = false;
 
 		$(document).on('click','#ckb1:checked',function(e){
 			checkBoxStatus = !checkBoxStatus;
 		});
 
+		function getCookie(cName) {
+			const name = cName + "=";
+			const cDecoded = decodeURIComponent(document.cookie); //to be careful
+			const cArr = cDecoded .split('; ');
+			let res;
+			cArr.forEach(val => {
+				if (val.indexOf(name) === 0) res = val.substring(name.length);
+			})
+			return res;
+		}
 
-		function handleResultsLogin (result){
-			// console.log(result)
-			ret = JSON.parse(result)
-			if (ret.code != 200) {
-				document.getElementById("ret").innerHTML = `
-					<div class="alert alert-danger" role="alert">
-						${ret.msg}
-					</div>`
-				return
-			}
-
-			// if ( checkBoxStatus ) {
-			// 	setCookie( "act", ret.access_token, ret.act_expt )
-			// 	setCookie( "rft", ret.refresh_token, ret.rft_expt )
-			// }
-
-			console.log("login successfull")
-			window.location.replace("../auth/login.html");
+		function setCookie(cName, cValue, expt) {
+			let date = new Date();
+			date.setTime(new Date(expt * 1000));
+			const expires = "expires=" + date.toUTCString();
+			document.cookie = cName + "=" + cValue + "; " + expires + "; path=/";
 		}
 
 		function submitForm(){
+
+			state = getCookie("oauthState")
+
+			if (state == undefined){
+				document.getElementById("ret").innerHTML = `
+					<div class="alert alert-danger" role="alert">
+						error registering to service, to go back to login <a href="../auth/login.html"> click here </a>
+					</div>`
+				// window.location.replace("../auth/login.html");
+				return false
+			}
 
 			if ( !checkBoxStatus ){
 				document.getElementById("ret").innerHTML = `
 					<div class="alert alert-danger" role="alert">
 						you need to agree to the terms of use
 					</div>`
-				return
+				return false
 			}
 
 			var password = document.getElementById("pass").value
@@ -79,10 +89,9 @@
 					<div class="alert alert-danger" role="alert">
 						password and repeat password are different
 					</div>`
-				return
+				return false
 			}
 
-			var email = document.getElementById("email").value
 			var usr = document.getElementById("usr").value
 
 			// login(email, password)
@@ -90,23 +99,47 @@
 			myHeaders.append("Content-Type", "application/json");
 
 			var raw = JSON.stringify({
-			"email": email,
-			"username": usr,
-			"password": password
+				"state": state,
+				"username": usr,
+				"password": password
 			});
 
 			var requestOptions = {
-			method: 'POST',
-			headers: myHeaders,
-			body: raw,
-			redirect: 'follow'
+				method: 'POST',
+				headers: myHeaders,
+				body: raw,
+				redirect: 'follow'
 			};
 
-			fetch("http://localhost:8080/signin", requestOptions)
+			fetch("http://localhost:8080/oauth/signin", requestOptions)
 			.then(response => response.text())
-			.then(result => handleResultsLogin(result))
+			.then(result => {
+				console.log(result)
+				ret = JSON.parse(result)
+				if (ret.code != 200) {
+					document.getElementById("ret").innerHTML = `
+						<div class="alert alert-danger" role="alert">
+							${ret.msg}
+						</div>`
+					return
+				}
+
+				setCookie( "act", ret.access_token, ret.act_expt )
+				setCookie( "rft", ret.refresh_token, ret.rft_expt )
+
+				setCookie( "oauthState", undefined, -1 )
+				window.location.replace("../privateArea/index.html");
+			})
 			.catch(error => console.log('error', error));
+			return false
 		}
+
+		function init() {
+            var form = document.getElementById("formS");
+			function handleForm(event) { event.preventDefault(); }
+			form.addEventListener('submit', handleForm);
+        }
+		document.addEventListener("DOMContentLoaded", init);
 
 	</script>
 
@@ -116,16 +149,10 @@
 			<div class="login100-more" style="background-image: url('images/bg.jpg');"></div>
 
 			<div class="wrap-login100 p-l-50 p-r-50 p-t-72 p-b-50">
-				<form class="login100-form validate-form" onsubmit="submitForm();" >
+				<form id="formS" class="login100-form validate-form" onsubmit="false" action="#" >
 					<span class="login100-form-title p-b-59">
-						Sign Up
+						Oauth Sign Up
 					</span>
-
-					<div class="wrap-input100 validate-input" data-validate = "Valid email is required: ex@abc.xyz">
-						<span class="label-input100">Email</span>
-						<input class="input100" type="text" name="email" id="email" placeholder="Email addess...">
-						<span class="focus-input100"></span>
-					</div>
 
 					<div class="wrap-input100 validate-input" data-validate="Username is required">
 						<span class="label-input100">Username</span>
@@ -165,15 +192,10 @@
 					<div class="container-login100-form-btn">
 						<div class="wrap-login100-form-btn">
 							<div class="login100-form-bgbtn"></div>
-							<button class="login100-form-btn">
+							<button onclick="submitForm()" class="login100-form-btn">
 								Sign Up
 							</button>
 						</div>
-
-						<a href="../auth/login.html" class="dis-block txt3 hov1 p-r-30 p-t-10 p-b-10 p-l-30">
-							Log in
-							<i class="fa fa-long-arrow-right m-l-5"></i>
-						</a>
 					</div>
 				</form>
 			</div>

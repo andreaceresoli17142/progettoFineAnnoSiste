@@ -85,7 +85,7 @@ func useRefreshToken(refresh_token string) (string, int, string, int, error) {
 // generating tokens {{{
 func generateTokenCouple(usrId int) (string, int, string, int, error) {
 	// generate random string for access token (check if token already exists)
-	Debugf("testing: %v", usrId)
+	// Debugf("testing: %v", usrId)
 	act := ""
 
 	for {
@@ -139,7 +139,7 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 	;`, usrId, act, act_expt, rft, rft_expt, act, act_expt, rft, rft_expt)
 
 	if err != nil {
-		Debugf("111 error: %v", err)
+		// Debugf("111 error: %v", err)
 		return "", -1, "", -1, err
 	}
 	return act, act_expt, rft, rft_expt, nil
@@ -322,7 +322,6 @@ func backendLogin(usr_id int, password string) (bool, error) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		Debugln("1")
 		return false, err
 	}
 
@@ -331,12 +330,10 @@ func backendLogin(usr_id int, password string) (bool, error) {
 	err = db.QueryRow("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id).Scan(&loginData.Salt, &loginData.PHash)
 
 	if err == sql.ErrNoRows {
-		Debugln("2")
 		return false, nil
 	}
 
 	if err != nil {
-		Debugln("3")
 		return false, err
 	}
 
@@ -346,10 +343,8 @@ func backendLogin(usr_id int, password string) (bool, error) {
 	sum := fmt.Sprintf("%x", hash[:])
 
 	if sum == loginData.PHash {
-		Debugln("3")
 		return true, nil
 	}
-	Debugln("4")
 	return false, nil
 }
 
@@ -420,7 +415,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 	ret, err := backendLogin(usrId, password)
 
 	if err != nil {
-		Debugln("13")
 		httpError(w, 500, err)
 		// httpError(w, 500, err)
 		return
@@ -432,12 +426,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 			httpError(w, 500, err)
 		}
 
-		Debugf("userid: %v", usrId)
+		// Debugf("userid: %v", usrId)
 
 		act, act_expt, rft, rft_expt, err := generateTokenCouple(usrId)
 
 		if err != nil {
-			Debugln("10")
 			httpError(w, 500, err)
 			return
 		}
@@ -445,7 +438,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 		err = updateLoginDate(usrId)
 
 		if err != nil {
-			Debugln("11")
 			httpError(w, 500, err)
 			return
 		}
@@ -531,7 +523,6 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 
 	if usrId == -1 {
 		httpError(w, 400, "invalid access token")
-		// fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
 		return
 	}
 
