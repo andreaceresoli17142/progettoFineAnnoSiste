@@ -5,6 +5,7 @@
  \__\___/ \__,_|\___/
 
 ---
+ - https://hub.docker.com/_/traefik
  - insert expiration time in state
  - https://codepen.io/ThomasDaubenton/pen/QMqaBN
  - migrate all access token to headers and all other data to / separated url
