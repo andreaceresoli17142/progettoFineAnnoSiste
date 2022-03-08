@@ -12,7 +12,6 @@ import ( // {{{
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 ) // }}}
 
@@ -263,76 +262,85 @@ func homePage(w http.ResponseWriter, r *http.Request) { // {{{
 func test(w http.ResponseWriter, r *http.Request) { // {{{
 	fmt.Println("endpoint hit: test")
 
-	err := r.ParseForm()
+	// err := r.ParseForm()
 
-	if err != nil {
-		httpError(w, 200, err)
-		// fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-		return
-	}
+	// if err != nil {
+	w.WriteHeader(http.StatusOK)
+	log.SetOutput(w)
+	log.Println("ciao")
 
-	act, _ := validate(r.PostForm.Get("act"), "")
+	// httpError(w, 200, err)
+	// fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+	return
+	// }
 
-	t, err := getAccessToken_usrid(act)
+	// act, _ := validate(r.PostForm.Get("act"), "")
 
-	if err != nil {
-		httpError(w, 200, err)
-		// fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-		return
-	}
-	fmt.Fprintf(w, "user id: %d", t)
+	// t, err := getAccessToken_usrid(act)
+
+	// if err != nil {
+	// 	httpError(w, 200, err)
+	// 	// fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+	// 	return
+	// }
+	// fmt.Fprintf(w, "user id: %d", t)
 } // }}}
 
-// func corsMiddleware(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		// log.Println("Executing middleware", r.Method)
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// log.Println("Executing middleware", r.Method)
+		origin := r.Header["Origin"]
+		// fmt.Println("origin", origin)
+		if len(origin) > 0 {
+			w.Header().Set("Access-Control-Allow-Origin", strings.Join(origin, ","))
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+		w.Header().Set("Content-Type", "application/json")
 
-// 		// if r.Method == "OPTIONS" {
-// 		// 	w.Header().Set("Access-Control-Allow-Origin", "*")
-// 		// 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-// 		// 	w.Header().Set("Access-Control-Allow-Headers", "*")
-// 		// 	w.Header().Set("Content-Type", "application/json")
-// 		// 	return
-// 		// }
-
-// 		next.ServeHTTP(w, r)
-// 		// log.Println("Executing middleware again")
-// 	})
-// }
+		if r.Method == "OPTIONS" {
+			headers := strings.Join(r.Header["Access-Control-Request-Headers"], ",")
+			fmt.Println("HEADERS", headers)
+			w.Header().Set("Access-Control-Allow-Headers", headers)
+			return
+		}
+		next.ServeHTTP(w, r)
+		// log.Println("Executing middleware again")
+	})
+}
 
 // route endpoints {{{
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 
-	authRouter := myRouter.PathPrefix("/auth").Subrouter()
 	myRouter.HandleFunc("/", homePage) //.Schemes("https")
-	authRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET")
-	authRouter.HandleFunc("/login", login).Methods("POST")
 	myRouter.HandleFunc("/test", test)
-	authRouter.HandleFunc("/userft", refreshTokenReq).Methods("POST")
-	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET")
-	myRouter.HandleFunc("/signin", signIn).Methods("POST")
-	myRouter.HandleFunc("/change", changeUserData).Methods("POST")
-	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET")
+	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET", "OPTIONS")
+	myRouter.HandleFunc("/signin", signIn).Methods("POST", "OPTIONS")
+	myRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
+	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET", "OPTIONS")
+
+	authRouter := myRouter.PathPrefix("/auth").Subrouter()
+	authRouter.HandleFunc("/oauth", paleoIdAuth).Methods("GET", "OPTIONS")
+	authRouter.HandleFunc("/login", login).Methods("POST", "OPTIONS")
+	authRouter.HandleFunc("/userft", refreshTokenReq).Methods("POST", "OPTIONS")
+
 	pwrRouter := myRouter.PathPrefix("/pwr").Subrouter()
-	pwrRouter.HandleFunc("/getotp/{email}", send_otp_retrivePassword).Methods("GET")
-	pwrRouter.HandleFunc("/useotp", use_otp_retrivePassword).Methods("POST")
+	pwrRouter.HandleFunc("/getotp/{email}", send_otp_retrivePassword).Methods("GET", "OPTIONS")
+	pwrRouter.HandleFunc("/useotp", use_otp_retrivePassword).Methods("POST", "OPTIONS")
 
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
-	originsOk := handlers.AllowedOrigins([]string{"*"})
-	methodsOk := handlers.AllowedMethods([]string{"GET", "POST"})
-	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(myRouter)))
+	// headersOk := handlers.AllowedHeaders([]string{"*"})
+	// originsOk := handlers.AllowedOrigins([]string{"*"})
+	// methodsOk := handlers.AllowedMethods([]string{"GET", "POST", "PATH", "PUT", "DELETE", "OPTIONS"})
+	// log.Fatal(http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(myRouter)))
 
-	// log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
+	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}
 
-func main() { // {{{
+func init() {
+	// log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	// sendEmail("andrea.ceresoli03", )
+	// log.Println("nyaaa")
 
-	// Debugf("%T", regexp.MustCompile(`[\\\/\<\>\"\']*`))
-
-	// load enviroment variables
 	ok := loadEnv()
 	// if loading fails exit the program
 	if !ok {
@@ -343,6 +351,15 @@ func main() { // {{{
 	if !ok {
 		log.Fatal("error getting file directory")
 	}
+}
+
+func main() { // {{{
+
+	// sendEmail("andrea.ceresoli03", )
+
+	// Debugf("%T", regexp.MustCompile(`[\\\/\<\>\"\']*`))
+
+	// load enviroment variables
 
 	Successln("GO server started")
 	handleRequests()

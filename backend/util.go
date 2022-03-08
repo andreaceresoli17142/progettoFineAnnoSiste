@@ -90,8 +90,10 @@ func RandomInt(n int) int {
 }
 
 func httpError(w http.ResponseWriter, code int, msg interface{}) {
-	// Debugln(msg)
-	http.Error(w, fmt.Sprintf(`{"code": %d, "msg":"%s"}`, code, fmt.Sprint(msg)), code)
+	Debugf("Error: %v", msg)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	fmt.Fprintf(w, `{"code": %d, "msg":"%s"}`, code, msg)
 }
 
 func httpSuccess(w http.ResponseWriter, code int, s string) {
