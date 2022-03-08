@@ -50,6 +50,7 @@
 					<div class="alert alert-danger" role="alert">
 						${ret.msg}
 					</div>`
+				return
 			}
 
 			// if ( checkBoxStatus ) {
@@ -58,7 +59,7 @@
 			// }
 
 			console.log("login successfull")
-			// window.location.replace("../login/index.html");
+			window.location.replace("../auth/login.html");
 		}
 
 		function submitForm(){
@@ -169,7 +170,7 @@
 							</button>
 						</div>
 
-						<a href="../login/index.html" class="dis-block txt3 hov1 p-r-30 p-t-10 p-b-10 p-l-30">
+						<a href="../auth/login.html" class="dis-block txt3 hov1 p-r-30 p-t-10 p-b-10 p-l-30">
 							Log in
 							<i class="fa fa-long-arrow-right m-l-5"></i>
 						</a>
