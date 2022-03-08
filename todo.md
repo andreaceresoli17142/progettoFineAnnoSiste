@@ -6,16 +6,11 @@
 
 ---
 
- - add exiration time to refesh token ( 7d )
  - migrate all access token to headers and all other data to / separated url
  - clean up comments and comment code
- - change all q:= "" db.Exec() into dc.Exec("... (?) ... ", x)
  - frontend interface
  - oauth
  - change user: send confirmation email when changing email
-
- - implementing: get conversations
-	 - returns only first conversation ( i think )
 
  - implement:
 	 - send friend request
