@@ -5,7 +5,8 @@
  \__\___/ \__,_|\___/
 
 ---
-
+ - insert expiration time in state
+ - https://codepen.io/ThomasDaubenton/pen/QMqaBN
  - migrate all access token to headers and all other data to / separated url
  - clean up comments and comment code
  - frontend interface

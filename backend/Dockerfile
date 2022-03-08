@@ -8,7 +8,7 @@ WORKDIR /app
 
 RUN go mod download
 
-COPY *.go *.json /app/
+COPY .* *.go /app/
 
 RUN go build -o backend *.go
 
