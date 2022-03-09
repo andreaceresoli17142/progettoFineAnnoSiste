@@ -5,7 +5,8 @@
  \__\___/ \__,_|\___/
 
 ---
- - https://hub.docker.com/_/traefik
+
+ - validate token using jwt
  - insert expiration time in state
  - https://codepen.io/ThomasDaubenton/pen/QMqaBN
  - migrate all access token to headers and all other data to / separated url
@@ -13,6 +14,7 @@
  - frontend interface
  - oauth
  - change user: send confirmation email when changing email
+ - https://hub.docker.com/_/traefik
 
  - implement:
 	 - send friend request
