@@ -190,9 +190,13 @@ func verifyRsaSignature(publicKey *rsa.PublicKey, keyString string) (string, err
 
 	dataSigPair := strings.Split(keyString, ".")
 
-	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, []byte(dataSigPair[0]), []byte(dataSigPair[1]))
+	getTkDigest := sha256.Sum256([]byte(dataSigPair[0]))
+
+	Debugf("tkd: %v", getTkDigest[:])
+
+	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, getTkDigest[:], []byte(dataSigPair[1]))
 	if err != nil {
-		Debugln("executed")
+		// Debugln(err)
 		return "", err
 	}
 	return dataSigPair[0], nil

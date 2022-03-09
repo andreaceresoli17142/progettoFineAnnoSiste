@@ -291,7 +291,8 @@ func BearerAuthHeader(authHeader string) string {
 		return ""
 	}
 
-	token, err := verifyRsaSignature(&rsaPublicKey, tokenSigPair)
+	token, err := verifyRsaSignature(publicKey, tokenSigPair)
+	Debugln("tk: " + token)
 	if err != nil {
 		return ""
 	}

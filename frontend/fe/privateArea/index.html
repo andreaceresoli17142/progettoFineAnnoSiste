@@ -5,12 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Private Area</title>
 </head>
-<body onunload="deleteTk()">
+<body >
     Hey!
+    <br>
+    <button onclick="signOut()"> sign out </button>
 
     <script>
 
-        window.onbeforeunload = deleteTk();
+        // window.onbeforeunload = confirmExit;
+        // function confirmExit(){
+        //     // alert("a");
+        //     if (getCookie("rm") == undefined) {
+        //         return
+        //     }
+        //     deleteTk();
+        //     return false;
+        // }
+
+        // window.onbeforeunload = function(){
+        //     console.log(getCookie("rm"))
+
+        //     
+        // }
 
         function getCookie(cName) {
             const name = cName + "=";
@@ -23,20 +39,22 @@
             return res;
 		}
 
+		function setCookie(cName, cValue, expt) {
+			let date = new Date();
+			date.setTime(new Date(expt * 1000));
+			const expires = "expires=" + date.toUTCString();
+			document.cookie = cName + "=" + cValue + "; " + expires + "; path=/";
+		}
+
         function deleteTk() {
+            setCookie("act", undefined, -1)
+            setCookie("rft", undefined, -1)
+            setCookie("rm", undefined, -1)
+        }
 
-            if (getCookie("rm") == undefined) {
-                return
-            }
-
-            var cookies = document.cookie.split(";");
-
-            for (var i = 0; i < cookies.length; i++) {
-                var cookie = cookies[i];
-                var eqPos = cookie.indexOf("=");
-                var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
-            }
+        function signOut() {
+            deleteTk();
+            window.location.replace("../auth/login.html");
         }
     </script>
 </body>
