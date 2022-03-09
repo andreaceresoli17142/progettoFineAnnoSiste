@@ -1,12 +1,16 @@
 package main
 
 import ( // {{{
+	"crypto"
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	"crypto/rand"
+	"crypto/rsa"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -142,7 +146,24 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 		// Debugf("111 error: %v", err)
 		return "", -1, "", -1, err
 	}
-	return act, act_expt, rft, rft_expt, nil
+
+	actSignature, err := rsa.SignPKCS1v15(rand.Reader, &rsaPrivateKey, crypto.SHA256, sha256.Sum256([]byte(act)))
+
+	if err != nil {
+		return "", -1, "", -1, err
+	}
+
+	act_signed := act + "." + string(actSignature[:])
+
+	rftSignature, err := rsa.SignPKCS1v15(rand.Reader, &rsaPrivateKey, crypto.SHA256, sha256.Sum256([]byte(rft)))
+
+	if err != nil {
+		return "", -1, "", -1, err
+	}
+
+	rft_signed := rft + "." + string(rftSignature[:])
+
+	return act_signed, act_expt, rft_signed, rft_expt, nil
 }
 
 func accessTokenExists(access_token string) (bool, error) {
@@ -256,6 +277,7 @@ func getUserId_Email(userEmail string) (int, error) {
 
 // get bearer tokens from header {{{
 func BearerAuthHeader(authHeader string) string {
+
 	if authHeader == "" {
 		return ""
 	}
@@ -265,8 +287,13 @@ func BearerAuthHeader(authHeader string) string {
 		return ""
 	}
 
-	token := strings.TrimSpace(parts[1])
-	if len(token) < 1 {
+	tokenSigPair := strings.TrimSpace(parts[1])
+	if len(tokenSigPair) < 1 {
+		return ""
+	}
+
+	token, err := verifyRsaSignature(&rsaPublicKey, tokenSigPair)
+	if err != nil {
 		return ""
 	}
 
