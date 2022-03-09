@@ -1,9 +1,10 @@
 package main
 
 import ( // {{{
-	"crypto"
+
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -147,21 +148,19 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 		return "", -1, "", -1, err
 	}
 
-	actSignature, err := rsa.SignPKCS1v15(rand.Reader, &rsaPrivateKey, crypto.SHA256, sha256.Sum256([]byte(act)))
-
+	actSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(act), nil)
 	if err != nil {
 		return "", -1, "", -1, err
 	}
 
-	act_signed := act + "." + string(actSignature[:])
+	act_signed := act + "." + strings.Replace(base64.StdEncoding.EncodeToString(actSignature), " ", "+", -1)
 
-	rftSignature, err := rsa.SignPKCS1v15(rand.Reader, &rsaPrivateKey, crypto.SHA256, sha256.Sum256([]byte(rft)))
-
+	rftSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(rft), nil)
 	if err != nil {
 		return "", -1, "", -1, err
 	}
 
-	rft_signed := rft + "." + string(rftSignature[:])
+	rft_signed := rft + "." + strings.Replace(base64.StdEncoding.EncodeToString(rftSignature), " ", "+", -1)
 
 	return act_signed, act_expt, rft_signed, rft_expt, nil
 }

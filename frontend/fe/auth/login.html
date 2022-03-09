@@ -69,9 +69,11 @@
 			}
 
 			if ( checkBoxStatus ) {
-				setCookie( "act", ret.access_token, ret.act_expt )
-				setCookie( "rft", ret.refresh_token, ret.rft_expt )
+				setCookie( "rm", "true" )
 			}
+
+			setCookie( "act", ret.access_token, ret.act_expt )
+			setCookie( "rft", ret.refresh_token, ret.rft_expt )
 
 			window.location.replace("../privateArea/index.html");
 		}

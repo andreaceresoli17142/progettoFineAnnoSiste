@@ -2,6 +2,8 @@ package main
 
 import ( // {{{
 
+	"crypto/rand"
+	"crypto/rsa"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -566,10 +568,13 @@ func init() {
 		log.Fatal("error getting file directory")
 	}
 
-	// privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	// CheckError(err)
+	var err error
+	privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic(err)
+	}
 
-	// publicKey := privateKey.PublicKey
+	publicKey = &privateKey.PublicKey
 	// secretMessage := "This is super secret message!"
 
 	// encryptedMessage := RSA_OAEP_Encrypt(secretMessage, publicKey)

@@ -1,6 +1,7 @@
 package main
 
 import ( //{{{
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -41,13 +42,18 @@ type Conversation struct {
 
 // }}}
 
-var validateEmail string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-@]*$`
-var validatePass string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-]{8,}$`
-var validateUser string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-]{5,}$`
+var (
+	validateEmail string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-@]*$`
+	validatePass  string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-]{8,}$`
+	validateUser  string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-]{5,}$`
 
-var vPassErr string = "password must be at least 8 characters long"
-var vUserErr string = "username must be at least 6 characters long"
-var vEmailErr string = "email is not valid"
+	vPassErr  string = "password must be at least 8 characters long"
+	vUserErr  string = "username must be at least 6 characters long"
+	vEmailErr string = "email is not valid"
+
+	privateKey *rsa.PrivateKey
+	publicKey  *rsa.PublicKey
+)
 
 //! orribile, da cambiare
 func validate(input string, regex string) (string, bool) {

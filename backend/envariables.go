@@ -95,45 +95,45 @@ func loadEnv() bool {
 		return false
 	}
 
-	pk, ok := os.LookupEnv("PRIVATE_KEY")
-	if !ok {
-		// Errorln("missing noreply port from env variables")
-		// return false
-		kp, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			Errorln("error generating private key")
-			return false
-		}
-		rsaPrivateKey = *kp
-		pks := ExportRsaPrivateKeyAsPemStr(kp)
-		os.Setenv("PRIVATE_KEY", pks)
-	} else {
-		rpk, err := ParseRsaPrivateKeyFromPemStr(pk)
-		if err != nil {
-			Errorln("error parsing private key")
-			return false
-		}
-		rsaPrivateKey = *rpk
-	}
+	// pk, ok := os.LookupEnv("PRIVATE_KEY")
+	// if !ok {
+	// 	// Errorln("missing noreply port from env variables")
+	// 	// return false
+	// 	kp, err := rsa.GenerateKey(rand.Reader, 2048)
+	// 	if err != nil {
+	// 		Errorln("error generating private key")
+	// 		return false
+	// 	}
+	// 	rsaPrivateKey = *kp
+	// 	pks := ExportRsaPrivateKeyAsPemStr(kp)
+	// 	os.Setenv("PRIVATE_KEY", pks)
+	// } else {
+	// 	rpk, err := ParseRsaPrivateKeyFromPemStr(pk)
+	// 	if err != nil {
+	// 		Errorln("error parsing private key")
+	// 		return false
+	// 	}
+	// 	rsaPrivateKey = *rpk
+	// }
 
-	rsaPublicKey = rsaPrivateKey.PublicKey
+	// rsaPublicKey = rsaPrivateKey.PublicKey
 
-	secretMessage := "0"
+	// secretMessage := "0"
 
-	encryptedMessage, err := rsa_Encrypt(secretMessage, rsaPublicKey)
-	if err != nil {
-		Errorln("error parsing private key")
-		return false
-	}
+	// encryptedMessage, err := rsa_Encrypt(secretMessage, rsaPublicKey)
+	// if err != nil {
+	// 	Errorln("error parsing private key")
+	// 	return false
+	// }
 
-	plainText, err := rsa_Decrypt(encryptedMessage, rsaPrivateKey)
+	// plainText, err := rsa_Decrypt(encryptedMessage, rsaPrivateKey)
 
-	if plainText != secretMessage || err != nil {
-		Errorln("error generating key pais")
-		return false
-	}
+	// if plainText != secretMessage || err != nil {
+	// 	Errorln("error generating key pais")
+	// 	return false
+	// }
 
-	Successln("created key pairs")
+	// Successln("created key pairs")
 
 	Successln("enviroment variables loaded")
 	return true
