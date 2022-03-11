@@ -555,6 +555,8 @@ func handleRequests() {
 func init() {
 	// log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	// Debugf("ht: %v", string())
+
 	// log.Println("nyaaa")
 
 	ok := loadEnv()

@@ -4,14 +4,10 @@ import ( // {{{
 
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
-
-	"crypto/rand"
-	"crypto/rsa"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -148,19 +144,38 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 		return "", -1, "", -1, err
 	}
 
-	actSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(act), nil)
+	signature, err := generateRsaSignature([]byte(act), privateKey)
+
 	if err != nil {
+		// Debugf("111 error: %v", err)
+		return "", -1, "", -1, err
+	}
+	Debugf("sig: %v", signature)
+
+	act_signed := act + "." + signature
+
+	// actSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(act), nil)
+	// if err != nil {
+	// 	return "", -1, "", -1, err
+	// }
+
+	// act_signed := act + "." + strings.Replace(base64.StdEncoding.EncodeToString(actSignature), " ", "+", -1)
+
+	// rftSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(rft), nil)
+	// if err != nil {
+	// 	return "", -1, "", -1, err
+	// }
+
+	// rft_signed := rft + "." + strings.Replace(base64.StdEncoding.EncodeToString(rftSignature), " ", "+", -1)
+
+	signature, err = generateRsaSignature([]byte(rft), privateKey)
+
+	if err != nil {
+		// Debugf("111 error: %v", err)
 		return "", -1, "", -1, err
 	}
 
-	act_signed := act + "." + strings.Replace(base64.StdEncoding.EncodeToString(actSignature), " ", "+", -1)
-
-	rftSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(rft), nil)
-	if err != nil {
-		return "", -1, "", -1, err
-	}
-
-	rft_signed := rft + "." + strings.Replace(base64.StdEncoding.EncodeToString(rftSignature), " ", "+", -1)
+	rft_signed := rft + "." + signature
 
 	return act_signed, act_expt, rft_signed, rft_expt, nil
 }
