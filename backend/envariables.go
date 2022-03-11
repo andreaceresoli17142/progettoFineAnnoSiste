@@ -196,8 +196,18 @@ func verifyRsaSignature(publicKey *rsa.PublicKey, keyString string) (string, err
 
 	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, getTkDigest[:], []byte(dataSigPair[1]))
 	if err != nil {
-		// Debugln(err)
+		Debugln(err)
 		return "", err
 	}
 	return dataSigPair[0], nil
+}
+
+func generateRsaSignature(msg []byte, pk *rsa.PublicKey) (string, error) {
+
+	signature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pk, msg, nil)
+	if err != nil {
+		return "", AppendError("error generating signture", err)
+	}
+
+	act_signed := act + "." + strings.Replace(base64.StdEncoding.EncodeToString(actSignature), " ", "+", -1)
 }

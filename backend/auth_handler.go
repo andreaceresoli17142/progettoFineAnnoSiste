@@ -207,7 +207,7 @@ func refreshTokenExists(refresh_token string) (bool, error) {
 	}
 
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error checking for the refresh token: %s", err.Error())
 	}
 
 	return true, nil

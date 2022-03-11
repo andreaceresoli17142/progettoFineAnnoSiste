@@ -77,6 +77,10 @@ func validate(input string, regex string) (string, bool) {
 	return re.ReplaceAllString(input, ""), ok
 }
 
+func AppendError(s string, e error) error {
+	return fmt.Errorf("%s: %e", s, e)
+}
+
 func RandomString(n int) string {
 	rand.Seed(time.Now().UnixNano())
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
