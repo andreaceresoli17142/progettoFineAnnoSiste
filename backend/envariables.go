@@ -190,20 +190,13 @@ func verifyRsaSignature(publicKey *rsa.PublicKey, keyString string) (string, err
 
 	dataSigPair := strings.Split(keyString, ".")
 
-	Debugf("tk:%s \ns: %s", dataSigPair[0], dataSigPair[1])
-
 	getTkDigest := sha256.Sum256([]byte(dataSigPair[0]))
 
-	// decodedTk, _ := base64.StdEncoding.DecodeString(strings.Replace(dataSigPair[1], "+", " ", -1))
 	decodedTk, _ := base64.StdEncoding.DecodeString(dataSigPair[1])
-	// decodedTk := []byte(dataSigPair[1])
-
-	Debugf("tkh: %v", getTkDigest[:])
-	Debugf("tkd: %v", decodedTk)
 
 	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, getTkDigest[:], decodedTk)
+
 	if err != nil {
-		Debugln(err)
 		return "", err
 	}
 	return dataSigPair[0], nil
@@ -219,9 +212,5 @@ func generateRsaSignature(msg []byte, pk *rsa.PrivateKey) (string, error) {
 		return "", AppendError("error generating signture", err)
 	}
 
-	Debugf("signature: %v", signature)
-
-	// return strings.Replace(base64.StdEncoding.EncodeToString(signature), " ", "+", -1), nil
 	return base64.StdEncoding.EncodeToString(signature), nil
-	// return string(signature), nil
 }

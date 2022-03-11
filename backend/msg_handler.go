@@ -10,34 +10,19 @@ import ( // {{{
 ) // }}}
 
 // get conversations {{{
-// QUERY: SELECT c.id, cn.name, cn.description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = 0 GROUP BY c.id;
 func getConversations(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get conversations")
-	// fmt.Println( r.Header.Authorization )
 	access_token := BearerAuthHeader(r.Header.Get("Authorization"))
-
-	// err := r.ParseForm()
-
-	// if err != nil
-	// 	fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
-	// 	return
-	// }
-
-	// access_token := validate(r.PostForm.Get("access_token"))
-
-	// fmt.Printf("debug - act: %s\n", access_token)
 
 	usr_id, err := getAccessToken_usrid(access_token)
 
-	// fmt.Printf("debug - userid: %d\n", usr_id)
-
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if usr_id == -1 {
-		fmt.Fprint(w, "{ \"resp_code\":300, error: \"invalid access token\" }")
+		httpError(&w, 300, "invalid access token")
 		return
 	}
 
@@ -46,22 +31,22 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		httpError(&w, 500, err)
 		return
 	}
 
-	// q := fmt.Sprintf("SELECT salt, pHash FROM Users WHERE id = (?);", usr_id)
 	res, err := db.Query("SELECT c.id as id, cn.name as name, cn.description as description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = (?) GROUP BY c.id;", usr_id)
 
 	defer res.Close()
 
 	if err == sql.ErrNoRows {
-		fmt.Fprint(w, "{ \"resp_code\":200, data:[] }")
+		var r []string
+		httpSuccessf(&w, 200, "data", r)
 		return
 	}
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+		httpError(&w, 500, err)
 		return
 	}
 
@@ -73,8 +58,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 		err := res.Scan(&conv.Id, &conv.Name, &conv.Description)
 
 		if err != nil {
-			// fmt.Printf( "debug - wqe: %d\n", usr_id )
-			fmt.Fprintf(w, "{ \"resp_code\":500, error: \"%v\" }", err)
+			httpError(&w, 500, err)
 			return
 		}
 
@@ -83,6 +67,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	a, _ := json.Marshal(convs)
 
-	fmt.Fprintf(w, "{ \"resp_code\":200, data:\"%s\" }", string(a))
+	httpSuccessf(&w, 200, "data", string(a))
+}
 
-} // }}}
+// }}}

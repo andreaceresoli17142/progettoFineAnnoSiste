@@ -4,7 +4,9 @@ import ( // {{{
 
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -12,6 +14,409 @@ import ( // {{{
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 ) // }}}
+
+// oauth {{{
+func addState(state string) error {
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		return AppendError("addState: ", err)
+	}
+
+	defer db.Close()
+
+	_, err = db.Exec(`INSERT INTO LoginState VALUES (?, null)`, state)
+
+	if err != nil {
+		return AppendError("addState: ", err)
+	}
+
+	return nil
+}
+
+func findState(state string) (string, error) {
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		return "false", AppendError("findState: ", err)
+	}
+
+	defer db.Close()
+
+	var str string
+	err = db.QueryRow(`SELECT idstring FROM LoginState WHERE idstring = ?`, state).Scan(&str)
+
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+
+	if err != nil {
+		return "", AppendError("findState: ", err)
+	}
+
+	return str, nil
+}
+
+func remState(state string) error {
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		return AppendError("remState: ", err)
+	}
+
+	defer db.Close()
+
+	_, err = db.Exec("DELETE FROM LoginState WHERE idstring = ?", state)
+
+	if err != nil {
+		return AppendError("remState: ", err)
+	}
+
+	return nil
+}
+
+func oauthGetTokenCouple(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: oauth get token couple")
+
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(&w, 400, "Content Type is not application/json")
+		return
+	}
+
+	err := r.ParseForm()
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	vars := mux.Vars(r)
+	state, ok := validate(vars["state"], "")
+
+	if !ok {
+		httpError(&w, 400, "error validating state")
+		return
+	}
+
+	// get email
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	defer db.Close()
+
+	var str string
+	err = db.QueryRow(`SELECT userEmail FROM LoginState WHERE idstring = ?`, state).Scan(&str)
+
+	if err == sql.ErrNoRows {
+		httpError(&w, 500, err)
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+	// finished getting email
+
+	usrId, err := getUserId_Email(str)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	act, act_expt, rft, rft_expt, err := generateTokenCouple(usrId)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	err = updateLoginDate(usrId)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	httpSuccessf(&w, 200, `"access_token":"%s", "act_expt": %d, "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
+}
+
+func signInOauth(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: oauth sign in")
+
+	headerContentTtype := r.Header.Get("Content-Type")
+	if headerContentTtype != "application/json" {
+		httpError(&w, 400, "Content Type is not application/json")
+		return
+	}
+
+	type ReqData struct {
+		State    string `json:"state"`
+		Password string `json:"password"`
+		Username string `json:"username"`
+	}
+
+	var re ReqData
+	err := httpGetBody(r, &re)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	username, ok := validate(re.Username, validateUser)
+
+	if !ok {
+		httpError(&w, 400, vUserErr)
+		return
+	}
+
+	state, ok := validate(re.State, "")
+
+	if !ok {
+		httpError(&w, 400, "error validating state")
+		return
+	}
+
+	// get email
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	defer db.Close()
+
+	var str string
+	err = db.QueryRow(`SELECT userEmail FROM LoginState WHERE idstring = ?`, state).Scan(&str)
+
+	if err == sql.ErrNoRows {
+		httpError(&w, 500, err)
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+	// finished getting email
+
+	email, ok := validate(str, "")
+
+	if !ok {
+		httpError(&w, 400, vEmailErr)
+		return
+	}
+
+	password, ok := validate(re.Password, validatePass)
+
+	if !ok {
+		httpError(&w, 400, vPassErr)
+		return
+	}
+
+	resp, err := addUser(username, email, password)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	if !resp {
+		httpError(&w, 400, "username or email already in use")
+		return
+	}
+
+	usrId, err := getUserId_Email(email)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	act, act_expt, rft, rft_expt, err := generateTokenCouple(usrId)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	err = updateLoginDate(usrId)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	httpSuccessf(&w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
+}
+
+func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	state, code := query.Get("state"), query.Get("code")
+	fmt.Println("endpoint hit: paleoId Auth")
+
+	ret, err := findState(state)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	if ret == "" {
+		return
+	}
+
+	payload := strings.NewReader(fmt.Sprintf(`{"grant_type":"%s" , "code":"%s", "redirect_uri":"%s", "client_id":"%s", "client_secret":"%s" }`, "authorization_code", code, redirectUri, clientId, clientSecret))
+
+	req, err := http.NewRequest("POST", "https://id.paleo.bg.it/oauth/token", payload)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
+	defer resp.Body.Close()
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	// now handle the response
+	var respData OauthResp
+	err = json.Unmarshal(body, &respData)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	url := "https://id.paleo.bg.it/api/v2/user"
+	req, err = http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+respData.AccessToken)
+
+	res, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	defer res.Body.Close()
+
+	body, err = ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	var resp1Data UserData
+	err = json.Unmarshal(body, &resp1Data)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	email := resp1Data.Email
+
+	// pair state with email
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE LoginState SET userEmail = ? WHERE idstring = ?", email, state)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	// redirect user
+
+	userId, err := getUserId_Email(email)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	username, _, _, err := getUserData(userId)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	if username == "" {
+		http.Redirect(w, r, "http://localhost/signUp/oauth.html", http.StatusMovedPermanently)
+		return
+	}
+
+	http.Redirect(w, r, "http://localhost/getoauthtk.html", http.StatusMovedPermanently)
+}
+
+func getOauthLink(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: getlink")
+
+	var state string
+
+	for {
+		state = RandomString(15)
+		ret, err := findState(state)
+
+		if err != nil {
+			httpError(&w, 500, err)
+			return
+		}
+
+		if ret == "" {
+			break
+		}
+	}
+
+	err := addState(state)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	httpSuccessf(&w, 200, `"state":"%v", "link":"https://id.paleo.bg.it/oauth/authorize?client_id=%v&response_type=code&state=%v&redirect_uri=%v"`, state, clientId, state, redirectUri)
+}
+
+// }}}
 
 // using refresh token {{{
 func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
@@ -24,25 +429,24 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 	act, a_expt, rft, r_expt, err := useRefreshToken(reft)
 
 	if err != nil {
-		httpError(w, 500, err.Error())
+		httpError(&w, 500, err.Error())
 		return
 	}
 
 	if act != "" {
-		httpSuccessf(w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, a_expt, rft, r_expt)
-		// fmt.Fprintf(w, "{ \"resp_code\":200, access_token:\"%s\", act_expt: %d  refresh_token:\"%s\", rft_expt:%d }", act, a_expt, rft, r_expt)
+		httpSuccessf(&w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, a_expt, rft, r_expt)
 		return
 	}
 
-	httpError(w, 400, "invalid refresh token")
-	// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid refresh token\" }")
+	httpError(&w, 400, "invalid refresh token")
 }
 
 func getUserIdFromRefreshToken(refresh_token string) (int, error) {
+
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		return -1, err
+		return -1, AppendError("getUserIdFromRefreshToken: ", err)
 	}
 
 	defer db.Close()
@@ -57,7 +461,7 @@ func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 
 	// else return error
 	if err != nil {
-		return -1, err
+		return -1, AppendError("getUserIdFromRefreshToken: ", err)
 	}
 
 	return ret.User_id, nil
@@ -86,7 +490,6 @@ func useRefreshToken(refresh_token string) (string, int, string, int, error) {
 // generating tokens {{{
 func generateTokenCouple(usrId int) (string, int, string, int, error) {
 	// generate random string for access token (check if token already exists)
-	// Debugf("testing: %v", usrId)
 	act := ""
 
 	for {
@@ -95,7 +498,7 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 		ret, err := accessTokenExists(act)
 
 		if err != nil {
-			return "", -1, "", -1, err
+			return "", -1, "", -1, AppendError("generateTokenCouple: ", err)
 		}
 
 		if !ret {
@@ -112,7 +515,7 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 		ret, err := refreshTokenExists(rft)
 
 		if err != nil {
-			return "", -1, "", -1, err
+			return "", -1, "", -1, AppendError("generateTokenCouple: ", err)
 		}
 
 		if !ret {
@@ -123,7 +526,7 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		return "", -1, "", -1, err
+		return "", -1, "", -1, AppendError("generateTokenCouple: ", err)
 	}
 
 	defer db.Close()
@@ -140,39 +543,21 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 	;`, usrId, act, act_expt, rft, rft_expt, act, act_expt, rft, rft_expt)
 
 	if err != nil {
-		// Debugf("111 error: %v", err)
-		return "", -1, "", -1, err
+		return "", -1, "", -1, AppendError("generateTokenCouple: ", err)
 	}
 
 	signature, err := generateRsaSignature([]byte(act), privateKey)
 
 	if err != nil {
-		// Debugf("111 error: %v", err)
-		return "", -1, "", -1, err
+		return "", -1, "", -1, AppendError("generateTokenCouple: ", err)
 	}
-	Debugf("sig: %v", signature)
 
 	act_signed := act + "." + signature
-
-	// actSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(act), nil)
-	// if err != nil {
-	// 	return "", -1, "", -1, err
-	// }
-
-	// act_signed := act + "." + strings.Replace(base64.StdEncoding.EncodeToString(actSignature), " ", "+", -1)
-
-	// rftSignature, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, []byte(rft), nil)
-	// if err != nil {
-	// 	return "", -1, "", -1, err
-	// }
-
-	// rft_signed := rft + "." + strings.Replace(base64.StdEncoding.EncodeToString(rftSignature), " ", "+", -1)
 
 	signature, err = generateRsaSignature([]byte(rft), privateKey)
 
 	if err != nil {
-		// Debugf("111 error: %v", err)
-		return "", -1, "", -1, err
+		return "", -1, "", -1, AppendError("generateTokenCouple: ", err)
 	}
 
 	rft_signed := rft + "." + signature
@@ -185,7 +570,7 @@ func accessTokenExists(access_token string) (bool, error) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		return false, err
+		return false, AppendError("accessTokenExists: ", err)
 	}
 
 	defer db.Close()
@@ -198,7 +583,7 @@ func accessTokenExists(access_token string) (bool, error) {
 	}
 
 	if err != nil {
-		return false, err
+		return false, AppendError("accessTokenExists: ", err)
 	}
 
 	return true, nil
@@ -209,7 +594,7 @@ func refreshTokenExists(refresh_token string) (bool, error) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		return false, err
+		return false, AppendError("refreshTokenExists: ", err)
 	}
 
 	defer db.Close()
@@ -222,7 +607,7 @@ func refreshTokenExists(refresh_token string) (bool, error) {
 	}
 
 	if err != nil {
-		return false, fmt.Errorf("error checking for the refresh token: %s", err.Error())
+		return false, AppendError("refreshTokenExists: ", err)
 	}
 
 	return true, nil
@@ -236,7 +621,7 @@ func getUserId_Email(userEmail string) (int, error) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		return -1, err
+		return -1, AppendError("getUserId_Email: ", err)
 	}
 
 	defer db.Close()
@@ -249,43 +634,11 @@ func getUserId_Email(userEmail string) (int, error) {
 	}
 
 	if err != nil {
-		return -1, err
+		return -1, AppendError("getUserId_Email: ", err)
 	}
 
 	return ret, nil
 }
-
-// }}}
-
-//! old function no longer in use
-// look if token couple already exists {{{
-// func tokenCoupleAlreadyExists(usrId int) (bool, error) {
-
-// 	db, err := sql.Open("mysql", databaseString)
-
-// 	if err != nil {
-// 		// fmt.Print("0")
-// 		return false, err
-// 	}
-
-// 	defer db.Close()
-// 	var ret int
-// 	q := fmt.Sprintf("SELECT userid FROM Token WHERE userid = \"%v\";", usrId)
-// 	err = db.QueryRow(q).Scan(&ret)
-// 	// fmt.Print(fmt.Sprint(ret))
-// 	if err == sql.ErrNoRows {
-// 		// fmt.Print("1")
-// 		return false, nil
-// 	}
-
-// 	if err != nil {
-// 		// fmt.Print("2")
-// 		return false, err
-// 	}
-
-// 	// fmt.Print("3")
-// 	return true, nil
-// }
 
 // }}}
 
@@ -297,17 +650,19 @@ func BearerAuthHeader(authHeader string) string {
 	}
 
 	parts := strings.Split(authHeader, "Bearer")
+
 	if len(parts) != 2 {
 		return ""
 	}
 
 	tokenSigPair := strings.TrimSpace(parts[1])
+
 	if len(tokenSigPair) < 1 {
 		return ""
 	}
 
 	token, err := verifyRsaSignature(publicKey, tokenSigPair)
-	Debugln("tk: " + token)
+
 	if err != nil {
 		return ""
 	}
@@ -325,7 +680,7 @@ func getAccessToken_usrid(access_token string) (int, error) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		return -1, err
+		return -1, AppendError("getAccessToken_usrid: ", err)
 	}
 
 	defer db.Close()
@@ -337,7 +692,7 @@ func getAccessToken_usrid(access_token string) (int, error) {
 	}
 
 	if err != nil {
-		return -1, err
+		return -1, AppendError("getAccessToken_usrid: ", err)
 	}
 
 	//? i think checking for nil is unnecessary
@@ -348,7 +703,7 @@ func getAccessToken_usrid(access_token string) (int, error) {
 		// update last login date
 		err = updateLoginDate(ret.User_id)
 		if err != nil {
-			return -1, err
+			return -1, AppendError("getAccessToken_usrid: ", err)
 		}
 		return ret.User_id, nil
 	}
@@ -364,7 +719,7 @@ func backendLogin(usr_id int, password string) (bool, error) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		return false, err
+		return false, AppendError("backendLogin: ", err)
 	}
 
 	defer db.Close()
@@ -376,7 +731,7 @@ func backendLogin(usr_id int, password string) (bool, error) {
 	}
 
 	if err != nil {
-		return false, err
+		return false, AppendError("backendLogin: ", err)
 	}
 
 	// compute hash of password and salt
@@ -393,12 +748,6 @@ func backendLogin(usr_id int, password string) (bool, error) {
 func login(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: login")
 
-	// headerContentTtype := r.Header.Get("Content-Type")
-	// if headerContentTtype != "application/json" {
-	// 	httpError(w, 400, "Content Type is not application/json")
-	// 	return
-	// }
-
 	type ReqData struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -409,87 +758,75 @@ func login(w http.ResponseWriter, r *http.Request) {
 	err := httpGetBody(r, &resp)
 
 	if err != nil {
-		// httpError(w, 500, err)
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	err = r.ParseForm()
 
 	if err != nil {
-		// httpError(w, 500, err)
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	email, ok := validate(resp.Email, "")
 
 	if !ok {
-		httpError(w, 400, vEmailErr)
+		httpError(&w, 400, vEmailErr)
 		return
 	}
 
 	password, ok := validate(resp.Password, validatePass)
 
 	if !ok {
-		httpError(w, 400, vPassErr)
+		httpError(&w, 400, vPassErr)
 		return
 	}
 
-	// Debugln(email)
-
 	usrId, err := getUserId_Email(email)
 
-	// Debugln(usrId)
-
 	if err != nil {
-		httpError(w, 500, err)
-		// httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		httpError(w, 400, "wrong email or password")
-		// fmt.Fprintln(w, "{ \"resp_code\":400, error: \"wrong email or password\" }")
+		httpError(&w, 400, "wrong email or password")
 		return
 	}
 
 	ret, err := backendLogin(usrId, password)
 
 	if err != nil {
-		httpError(w, 500, err)
-		// httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if ret {
 
 		if err != nil {
-			httpError(w, 500, err)
+			httpError(&w, 500, err)
 		}
-
-		// Debugf("userid: %v", usrId)
 
 		act, act_expt, rft, rft_expt, err := generateTokenCouple(usrId)
 
 		if err != nil {
-			httpError(w, 500, err)
+			httpError(&w, 500, err)
 			return
 		}
 
 		err = updateLoginDate(usrId)
 
 		if err != nil {
-			httpError(w, 500, err)
+			httpError(&w, 500, err)
 			return
 		}
 
-		httpSuccessf(w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
-		// fmt.Fprintf(w, "{ \"resp_code\":200, act_expt:\"%s\", expire_time: %d  refresh_token:\"%s\", rft_expt:%d }", act, act_expt, rft, rft_expt)
+		httpSuccessf(&w, 200, `"access_token":"%s", "act_expt": %d,  "refresh_token":"%s", "rft_expt":%d`, act, act_expt, rft, rft_expt)
 		return
 	}
 
-	httpError(w, 400, "wrong email or password")
+	httpError(&w, 400, "wrong email or password")
 }
 
 // }}}
@@ -500,7 +837,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 
 	headerContentTtype := r.Header.Get("Content-Type")
 	if headerContentTtype != "application/json" {
-		httpError(w, 400, "Content Type is not application/json")
+		httpError(&w, 400, "Content Type is not application/json")
 		return
 	}
 
@@ -516,14 +853,14 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 	err := httpGetBody(r, &resp)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	err = r.ParseForm()
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
@@ -531,47 +868,47 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 	new_username, ok := validate(resp.New_username, validateUser)
 
 	if !ok {
-		httpError(w, 400, vUserErr)
+		httpError(&w, 400, vUserErr)
 		return
 	}
 
 	new_email, ok := validate(resp.New_email, "")
 
 	if !ok {
-		httpError(w, 400, vEmailErr)
+		httpError(&w, 400, vEmailErr)
 		return
 	}
 
 	new_pw, ok := validate(resp.New_pw, validatePass)
 
 	if !ok {
-		httpError(w, 400, vPassErr)
+		httpError(&w, 400, vPassErr)
 		return
 	}
 
 	old_pw, ok := validate(resp.Old_pw, validatePass)
 
 	if !ok {
-		httpError(w, 400, vPassErr)
+		httpError(&w, 400, vPassErr)
 		return
 	}
 
 	usrId, err := getAccessToken_usrid(act)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		httpError(w, 400, "invalid access token")
+		httpError(&w, 400, "invalid access token")
 		return
 	}
 
 	ret, err := backendLogin(usrId, old_pw)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
@@ -584,11 +921,11 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		if new_username != "" {
 			usrid_1, err := getUserId_Usr(new_username)
 			if err != nil {
-				httpError(w, 500, err)
+				httpError(&w, 500, err)
 				return
 			}
 			if usrid_1 != -1 {
-				httpError(w, 400, "username already exists")
+				httpError(&w, 400, "username already exists")
 				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"username already exists\" }")
 				return
 			}
@@ -599,11 +936,11 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		if new_email != "" {
 			usrid_1, err := getUserId_Email(new_email)
 			if err != nil {
-				httpError(w, 500, err)
+				httpError(&w, 500, err)
 				return
 			}
 			if usrid_1 != -1 {
-				httpError(w, 400, "account using this email already exists")
+				httpError(&w, 400, "account using this email already exists")
 				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"account using this email already exists\" }")
 				return
 			}
@@ -614,11 +951,11 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		if new_pw != "" {
 			loginState, err := backendLogin(usrId, new_pw)
 			if err != nil {
-				httpError(w, 500, err)
+				httpError(&w, 500, err)
 				return
 			}
 			if !loginState {
-				httpError(w, 400, "password already in use")
+				httpError(&w, 400, "password already in use")
 				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"password already in use\" }")
 				return
 			}
@@ -635,7 +972,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !sumChangesFlag {
-			httpError(w, 400, "you need to specify a change")
+			httpError(&w, 400, "you need to specify a change")
 			// fmt.Fprintf(w, "{ \"resp_code\":300, error:\"you need to specify a change\"  }")
 			return
 		}
@@ -647,7 +984,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		db, err := sql.Open("mysql", databaseString)
 
 		if err != nil {
-			httpError(w, 500, err)
+			httpError(&w, 500, err)
 			return
 		}
 
@@ -656,17 +993,16 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 		_, err = db.Exec(q)
 
 		if err != nil {
-			httpError(w, 500, err)
+			httpError(&w, 500, err)
 			return
 		}
 
-		httpSuccess(w, 200, "data changed successfully")
+		httpSuccess(&w, 200, "data changed successfully")
 		// fmt.Fprint(w, "{ \"resp_code\":200, error: \"data changed successfully\" }")
 		return
 	}
 
-	httpError(w, 400, "invalid access token")
-	// fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
+	httpError(&w, 400, "invalid access token")
 }
 
 // }}}
@@ -680,12 +1016,12 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 	usrId, err := getAccessToken_usrid(act)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		httpError(w, 400, "invalid access token")
+		httpError(&w, 400, "invalid access token")
 		// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
 		return
 	}
@@ -693,18 +1029,17 @@ func getUserDataReq(w http.ResponseWriter, r *http.Request) {
 	username, email, date_of_join, err := getUserData(usrId)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if username == "" {
-		httpError(w, 400, "id is empty")
+		httpError(&w, 400, "id is empty")
 		// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid wrong id\"  }")
 		return
 	}
 
-	httpSuccessf(w, 200, `"username": "%v", "email": "%v", "date_of_join": "%v"`, username, email, date_of_join)
-	// fmt.Fprintf(w, "{ \"resp_code\":200, username: \"%v\", email: \"%v\", date_of_join: \"%v\" }", username, email, date_of_join)
+	httpSuccessf(&w, 200, `"username": "%v", "email": "%v", "date_of_join": "%v"`, username, email, date_of_join)
 }
 
 // }}}
@@ -715,7 +1050,7 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 
 	headerContentTtype := r.Header.Get("Content-Type")
 	if headerContentTtype != "application/json" {
-		httpError(w, 400, "Content Type is not application/json")
+		httpError(&w, 400, "Content Type is not application/json")
 		return
 	}
 
@@ -730,59 +1065,57 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	err := httpGetBody(r, &re)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	err = r.ParseForm()
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	username, ok := validate(re.Username, validateUser)
-	// Debugln(ok)
+
 	if !ok {
-		httpError(w, 400, vUserErr)
+		httpError(&w, 400, vUserErr)
 		return
 	}
 
 	email, ok := validate(re.Email, "")
 
 	if !ok {
-		httpError(w, 400, vEmailErr)
+		httpError(&w, 400, vEmailErr)
 		return
 	}
 
 	password, ok := validate(re.Password, validatePass)
 
 	if !ok {
-		httpError(w, 400, vPassErr)
+		httpError(&w, 400, vPassErr)
 		return
 	}
 
 	resp, err := addUser(username, email, password)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if !resp {
-		httpError(w, 400, "username or email already in use")
+		httpError(&w, 400, "username or email already in use")
 		// fmt.Fprint(w, "{ \"resp_code\":400 \"error\":\"username or email already in use\" }")
 		return
 	}
 
-	httpSuccess(w, 200, "sign in succesfull")
-	// fmt.Fprint(w, "{ \"resp_code\":200 \"details\":\"sign in succesfull\" }")
+	httpSuccess(&w, 200, "sign in succesfull")
 }
 
 // }}}
 
 // retrive password {{{
-
 type otpStruct struct {
 	UserId int    `db:"userId"`
 	Otp    string `db:"otp"`
@@ -819,7 +1152,7 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 
 	// headerContentTtype := r.Header.Get("Content-Type")
 	// if headerContentTtype != "application/json" {
-	// 	httpError(w, 400, "Content Type is not application/json")
+	// 	httpError(&w, 400, "Content Type is not application/json")
 	// 	return
 	// }
 
@@ -832,14 +1165,14 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	// err := httpGetBody(r, &resp)
 
 	// if err != nil {
-	// 	httpError(w, 500, err)
+	// 	httpError(&w, 500, err)
 	// 	return
 	// }
 
 	err := r.ParseForm()
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
@@ -847,19 +1180,19 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	email, ok := validate(vars["email"], "")
 
 	if !ok {
-		httpError(w, 400, vEmailErr)
+		httpError(&w, 400, vEmailErr)
 		return
 	}
 
 	// email := validate(r.Form.Get("email"))
 	usrId, err := getUserId_Email(email)
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if usrId == -1 {
-		httpError(w, 400, "no user connected to email")
+		httpError(&w, 400, "no user connected to email")
 		// fmt.Fprint(w, "{ \"resp_code\":400, error: \"no user connected to email\" }")
 		return
 	}
@@ -867,7 +1200,7 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
@@ -879,7 +1212,7 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	for {
 		otp, err = getOtp()
 		if err != nil {
-			httpError(w, 500, err)
+			httpError(&w, 500, err)
 			return
 		}
 		if otp != "" {
@@ -894,19 +1227,18 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	;`, usrId, otp, expt, usrId, otp, expt)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	err = sendEmail(email, "instan-tex otp code", "\n the code is: "+otp)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
-	httpSuccess(w, 200, "otp sended successfully")
-	// fmt.Fprintf(w, "{ \"resp_code\":200 comment:\"otp sended successfully\" }")
+	httpSuccess(&w, 200, "otp sended successfully")
 }
 
 // }}}
@@ -917,7 +1249,7 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 
 	headerContentTtype := r.Header.Get("Content-Type")
 	if headerContentTtype != "application/json" {
-		httpError(w, 400, "Content Type is not application/json")
+		httpError(&w, 400, "Content Type is not application/json")
 		return
 	}
 
@@ -930,21 +1262,21 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	err := httpGetBody(r, &resp)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	err = r.ParseForm()
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	new_password, ok := validate(resp.New_pw, validatePass)
 
 	if !ok {
-		httpError(w, 400, vPassErr)
+		httpError(&w, 400, vPassErr)
 		return
 	}
 
@@ -953,7 +1285,7 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
@@ -964,18 +1296,18 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow("SELECT userId, expt FROM PwOtp WHERE otp = (?);", otp).Scan(&otpData.UserId, &otpData.Expt)
 
 	if err == sql.ErrNoRows {
-		httpError(w, 400, "token does not exists")
+		httpError(&w, 400, "token does not exists")
 		// fmt.Fprint(w, "{ \"resp_code\":400, error:\"token does not exists \" }")
 		return
 	}
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
 	if int(time.Now().Unix()) > otpData.Expt {
-		httpError(w, 400, "token expired")
+		httpError(&w, 400, "token expired")
 		// fmt.Fprint(w, "{ \"resp_code\":400, error:\"token expired\" }")
 		return
 	}
@@ -983,7 +1315,7 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	// db, err = sql.Open("mysql", databaseString)
 
 	// if err != nil {
-	// 	httpError(w, 500, err)
+	// 	httpError(&w, 500, err)
 	// 	return
 	// }
 
@@ -999,12 +1331,11 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 	_, err = db.Exec("UPDATE Users SET salt = (?), pHash = (?) WHERE id = (?) ", salt, sum, otpData.UserId)
 
 	if err != nil {
-		httpError(w, 500, err)
+		httpError(&w, 500, err)
 		return
 	}
 
-	httpSuccess(w, 200, "data changed successfully")
-	// fmt.Fprint(w, "{ \"resp_code\":200, comment:\"data changed successfully\" }")
+	httpSuccess(&w, 200, "data changed successfully")
 }
 
 // }}}

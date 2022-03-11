@@ -42,6 +42,7 @@ type Conversation struct {
 
 // }}}
 
+// variables {{{
 var (
 	validateEmail string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-@]*$`
 	validatePass  string = `^[a-zA-Z0-9.!#$%&'*+=?^_{|}~-]{8,}$`
@@ -54,6 +55,8 @@ var (
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
 )
+
+//}}}
 
 //! orribile, da cambiare
 func validate(input string, regex string) (string, bool) {
@@ -72,7 +75,6 @@ func validate(input string, regex string) (string, bool) {
 	} else {
 		ok = true
 	}
-	// Debugf("ok? %v", ok)
 
 	return re.ReplaceAllString(input, ""), ok
 }
@@ -99,25 +101,28 @@ func RandomInt(n int) int {
 	return rand.Int() % n
 }
 
-func httpError(w http.ResponseWriter, code int, msg interface{}) {
+//http returns {{{
+func httpError(w *http.ResponseWriter, code int, msg interface{}) {
 	Debugf("Error: %v", msg)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	fmt.Fprintf(w, `{"code": %d, "msg":"%s"}`, code, msg)
+	(*w).Header().Set("Content-Type", "application/json")
+	(*w).WriteHeader(code)
+	fmt.Fprintf((*w), `{"code": %d, "msg":"%s"}`, code, msg)
 }
 
-func httpSuccess(w http.ResponseWriter, code int, s string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	fmt.Fprintf(w, `{"code": %d, "msg":"%s"}`, code, s)
+func httpSuccess(w *http.ResponseWriter, code int, s string) {
+	(*w).Header().Set("Content-Type", "application/json")
+	(*w).WriteHeader(code)
+	fmt.Fprintf((*w), `{"code": %d, "msg":"%s"}`, code, s)
 }
 
-func httpSuccessf(w http.ResponseWriter, code int, s string, args ...interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
+func httpSuccessf(w *http.ResponseWriter, code int, s string, args ...interface{}) {
+	(*w).Header().Set("Content-Type", "application/json")
+	(*w).WriteHeader(code)
 	rs := fmt.Sprintf(s, args...)
-	fmt.Fprintf(w, `{"code": %d, %s}`, code, rs)
+	fmt.Fprintf((*w), `{"code": %d, %s}`, code, rs)
 }
+
+//}}}
 
 func httpGetBody(r *http.Request, v interface{}) error {
 	b, err := ioutil.ReadAll(r.Body)
@@ -136,21 +141,16 @@ func httpGetBody(r *http.Request, v interface{}) error {
 
 func sendEmail(reciver_email string, subject string, messagge string) error {
 
-	// email_email := "noreply.64189489@gmail.com"
-	// email_password := "xecntudonnptbhfh"
-	// email_server := "smtp.gmail.com"
-	//:587
-	// Choose auth method and set it up
 	auth := smtp.PlainAuth("", email_email, email_password, email_server)
 
-	// Here we do it all: connect to our server, set up a message and send it
 	to := []string{reciver_email}
-	// msg := []byte( fmt.Sprintf(`To: %s \r\n Subject: %s \r\n	\r\n %s \r\n` , reciver_email, subject, messagge ))
 	msg_string := "To:" + reciver_email + "\r\nSubject: " + subject + "\r\n\r\n" + messagge + "\r\n"
 	msg := []byte(msg_string)
 	err := smtp.SendMail(email_server+":"+email_port, auth, reciver_email, to, msg)
+
 	if err != nil {
-		return err
+		return AppendError("error sending mail: ", err)
 	}
+
 	return nil
 }
