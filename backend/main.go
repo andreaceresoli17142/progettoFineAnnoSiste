@@ -69,6 +69,9 @@ func handleRequests() {
 	pwrRouter.HandleFunc("/getotp/{email}", send_otp_retrivePassword).Methods("GET", "OPTIONS")
 	pwrRouter.HandleFunc("/useotp", use_otp_retrivePassword).Methods("POST", "OPTIONS")
 
+	freqRouter := myRouter.PathPrefix("/freq").Subrouter()
+	freqRouter.HandleFunc("/makereq", makeFriendRequest).Methods("POST", "OPTIONS")
+
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}
 
