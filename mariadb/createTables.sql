@@ -22,7 +22,7 @@ CREATE TABLE FriendRequests (
     PRIMARY KEY ( id )
 );
 
-CREATE TABLE ConversationName (
+CREATE TABLE GroupName (
 	id INT NOT NULL AUTO_INCREMENT,
 	name VARCHAR(30) NOT NULL,
 	description TEXT,

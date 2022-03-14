@@ -70,4 +70,75 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	httpSuccessf(&w, 200, "data", string(a))
 }
 
+// takes userid, name and description, if description is empty we are creaing a conversation otherwise we are creating a group
+// then create conversation, add user and data, return conversation id
+func addConversations(userId int, name string, description string) (int, error) {
+
+	// generating conversation id
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		return -1, AppendError("error: addConversation", err)
+	}
+
+	defer db.Close()
+
+	var convId int
+	err = db.QueryRow(`SELECT COUNT(*) FROM (SELECT * FROM Conversations GROUP BY id) as a;`).Scan(convId)
+
+	if err == sql.ErrNoRows {
+		return -1, AppendError("error: addConversation", err)
+	}
+
+	if err != nil {
+		return -1, AppendError("error: addConversation", err)
+	}
+
+	convId = convId + 1
+	// finished conversation id
+
+	// adding conversation
+	db, err = sql.Open("mysql", databaseString)
+
+	if err != nil {
+		return -1, AppendError("error: addConversation", err)
+	}
+
+	defer db.Close()
+
+	err = db.QueryRow(`INSERT INTO Conversations (id, participantId)(?, ?);`, convId, userId).Scan() // .Scan(convId)
+
+	if err == sql.ErrNoRows {
+		return -1, AppendError("error: addConversation", err)
+	}
+
+	if err != nil {
+		return -1, AppendError("error: addConversation", err)
+	}
+	// finised adding conversation
+
+	// adding conversation name and description
+	// db, err = sql.Open("mysql", databaseString)
+
+	// if err != nil {
+	// 	return -1, AppendError("error: addConversation", err)
+	// }
+
+	// defer db.Close()
+
+	// q := `INSERT INTO GroupName (id, participantId)(?, ?);`
+
+	// err = db.QueryRow(q, convId, userId).Scan() // .Scan(convId)
+
+	// if err == sql.ErrNoRows {
+	// 	return -1, AppendError("error: addConversation", err)
+	// }
+
+	// if err != nil {
+	// 	return -1, AppendError("error: addConversation", err)
+	// }
+
+	return convId, nil
+}
+
 // }}}
