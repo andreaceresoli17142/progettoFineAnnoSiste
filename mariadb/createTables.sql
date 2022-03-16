@@ -11,7 +11,7 @@ CREATE TABLE Users (
     date_of_join DATE NOT NULL,
     salt INT NOT NULL,
     pHash CHAR(64) NOT NULL,
-	last_login TIMESTAMP NOT NULL,
+	 last_login TIMESTAMP NOT NULL,
     PRIMARY KEY ( id )
 );
 
@@ -45,6 +45,22 @@ CREATE TABLE Token (
 	rft_expt INT NOT NULL,
     PRIMARY KEY ( userid )
 );
+
+CREATE TABLE AccessToken (
+	userid INT NOT NULL,
+	accessToken CHAR(64) NOT NULL,
+	act_expt INT NOT NULL,
+	PRIMARY KEY ( userid )
+);
+
+CREATE TABLE RefreshToken (
+	Id INT AUTO_INCREMENT
+	userid INT NOT NULL,
+	refreshToken CHAR(64) NOT NULL,
+	rft_expt INT NOT NULL,
+	PRIMARY KEY ( userid )
+);
+
 
 CREATE TABLE PwOtp (
 	userId INT NOT NULL,
