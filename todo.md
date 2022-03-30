@@ -6,13 +6,13 @@
 
 ---
 
- - validate token using jwt
- - insert expiration time in state
+- insert expiration time in state
  - https://codepen.io/ThomasDaubenton/pen/QMqaBN
  - migrate all access token to headers and all other data to / separated url
+ - hash access referesh token
+ - middleware to check for access/refresh token
  - clean up comments and comment code
  - frontend interface
- - oauth
  - change user: send confirmation email when changing email
  - https://hub.docker.com/_/traefik
 
