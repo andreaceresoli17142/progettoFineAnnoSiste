@@ -11,7 +11,7 @@ CREATE TABLE Users (
     date_of_join DATE NOT NULL,
     salt INT NOT NULL,
     pHash CHAR(64) NOT NULL,
-	 last_login TIMESTAMP NOT NULL,
+	last_login TIMESTAMP NOT NULL,
     PRIMARY KEY ( id )
 );
 

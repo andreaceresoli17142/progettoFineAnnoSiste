@@ -54,6 +54,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/signin", signIn).Methods("POST", "OPTIONS")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
 	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET", "OPTIONS")
+	myRouter.HandleFunc("/websock", initSocket).Methods("GET", "OPTIONS")
 
 	oauthRouter := myRouter.PathPrefix("/oauth").Subrouter()
 	oauthRouter.HandleFunc("/", paleoIdAuth).Methods("GET", "OPTIONS")
