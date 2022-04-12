@@ -4,8 +4,8 @@ import ( // {{{
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -43,7 +43,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	if err == sql.ErrNoRows {
 		var r []string
-		httpSuccessf(&w, 200, "data", r)
+		httpSuccessf(&w, 200, `data:"%s"`, r)
 		return
 	}
 
@@ -69,10 +69,10 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	a, _ := json.Marshal(convs)
 
-	httpSuccessf(&w, 200, "data", string(a))
+	httpSuccessf(&w, 200, `data:%s`, string(a))
 }
 
-//! NEEDS TESTING
+//! NEEDS TESTING AND REFACTORING, CODE SEEMS UNINTUITIVE
 // takes userid, name and description, if description is empty we are creaing a conversation otherwise we are creating a group
 // then create conversation, add user and data, return conversation id
 func addConversations(userId int, name string, description string) (int, error) {
@@ -180,37 +180,43 @@ func addUserToConv(convId int, userId int) error {
 func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get friend request")
 
-	parts := strings.Split(r.Header.Get("Authorization"), "Bearer")
-
-	if len(parts) != 2 {
-		return
-	}
-
-	access_token := strings.TrimSpace(parts[1])
-
-	// access_token := BearerAuthHeader(r.Header.Get("Authorization"))
+	access_token := BearerAuthHeader(r.Header.Get("Authorization"))
 
 	requesterId, err := getAccessToken_usrid(access_token)
 
-	if err != nil {
-		httpError(&w, 500, "access token not valid")
+	if err != nil || requesterId == -1 {
+		Debugln(err)
+		httpError(&w, 500, "Error getting access token")
 		return
 	}
 
+	b, err := ioutil.ReadAll(r.Body)
+	Debugln("\n" + string(b[:]))
+
 	type ReqData struct {
-		userId string `json:"reciverid"`
+		userId int `json:"userid"`
 	}
 
 	var resp ReqData
 
-	err = httpGetBody(r, &resp)
+	// err = httpGetBody(r, &resp)
+	err = json.Unmarshal(b, &resp.userId)
 
 	if err != nil {
-		httpError(&w, 500, "backend error")
+		httpError(&w, 500, "backend error - "+err.Error())
 		return
 	}
 
-	requesteeId, _ := strconv.Atoi(resp.userId)
+	Debugln(resp.userId)
+
+	requesteeId := resp.userId
+
+	// requesteeId, _ := strconv.Atoi(resp.userId)
+
+	if requesterId == requesteeId {
+		httpError(&w, 300, "you can't ask a friend request to yourself")
+		return
+	}
 
 	db, err := sql.Open("mysql", databaseString)
 

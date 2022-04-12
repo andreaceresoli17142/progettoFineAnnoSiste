@@ -657,17 +657,22 @@ func BearerAuthHeader(authHeader string) string {
 
 	tokenSigPair := strings.TrimSpace(parts[1])
 
-	if len(tokenSigPair) < 1 {
-		return ""
-	}
+	// if len(tokenSigPair) < 1 {
+	// 	return ""
+	// }
 
-	token, err := verifyRsaSignature(publicKey, tokenSigPair)
+	// Debugf("pk: %v\npvk: %v", *publicKey, *privateKey)
 
-	if err != nil {
-		return ""
-	}
+	// token, err := verifyRsaSignature(publicKey, tokenSigPair)
 
-	ret, _ := validate(token, "")
+	// if err != nil {
+	// Debugln("err: " + err.Error())
+	// return ""
+	// }
+
+	// ret, _ := validate(token, "")
+
+	ret := tokenSigPair
 
 	return ret
 }
@@ -676,6 +681,8 @@ func BearerAuthHeader(authHeader string) string {
 
 // get usrid from access tokens {{{
 func getAccessToken_usrid(access_token string) (int, error) {
+
+	Debugln(access_token)
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -688,6 +695,7 @@ func getAccessToken_usrid(access_token string) (int, error) {
 	err = db.QueryRow("SELECT userid, act_expt FROM Token WHERE accessToken = (?);", access_token).Scan(&ret.User_id, &ret.Act_expt)
 
 	if err == sql.ErrNoRows {
+		Debugln("errnowors")
 		return -1, nil
 	}
 

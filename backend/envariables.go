@@ -104,7 +104,7 @@ func loadEnv() bool {
 	// 		Errorln("error generating private key")
 	// 		return false
 	// 	}
-	// 	rsaPrivateKey = *kp
+	// 	privateKey = kp
 	// 	pks := ExportRsaPrivateKeyAsPemStr(kp)
 	// 	os.Setenv("PRIVATE_KEY", pks)
 	// } else {
@@ -113,27 +113,27 @@ func loadEnv() bool {
 	// 		Errorln("error parsing private key")
 	// 		return false
 	// 	}
-	// 	rsaPrivateKey = *rpk
+	// 	privateKey = rpk
 	// }
 
-	// rsaPublicKey = rsaPrivateKey.PublicKey
+	// publicKey = &privateKey.PublicKey
 
 	// secretMessage := "0"
 
-	// encryptedMessage, err := rsa_Encrypt(secretMessage, rsaPublicKey)
+	// encryptedMessage, err := rsa_Encrypt(secretMessage, *publicKey)
 	// if err != nil {
 	// 	Errorln("error parsing private key")
 	// 	return false
 	// }
 
-	// plainText, err := rsa_Decrypt(encryptedMessage, rsaPrivateKey)
+	// plainText, err := rsa_Decrypt(encryptedMessage, *privateKey)
 
 	// if plainText != secretMessage || err != nil {
 	// 	Errorln("error generating key pais")
 	// 	return false
 	// }
 
-	// Successln("created key pairs")
+	// Successln("fetched key pairs")
 
 	Successln("enviroment variables loaded")
 	return true
