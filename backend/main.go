@@ -72,6 +72,7 @@ func handleRequests() {
 
 	freqRouter := myRouter.PathPrefix("/freq").Subrouter()
 	freqRouter.HandleFunc("/makereq", makeFriendRequest).Methods("POST", "OPTIONS")
+	freqRouter.HandleFunc("/getreq", getFriendRequest).Methods("GET", "OPTIONS")
 
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}

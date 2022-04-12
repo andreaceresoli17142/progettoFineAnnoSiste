@@ -185,33 +185,29 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 	requesterId, err := getAccessToken_usrid(access_token)
 
 	if err != nil || requesterId == -1 {
-		Debugln(err)
 		httpError(&w, 500, "Error getting access token")
 		return
 	}
 
 	b, err := ioutil.ReadAll(r.Body)
-	Debugln("\n" + string(b[:]))
 
 	type ReqData struct {
-		userId int `json:"userid"`
+		UserId int `json:"userid"`
 	}
 
 	var resp ReqData
 
 	// err = httpGetBody(r, &resp)
-	err = json.Unmarshal(b, &resp.userId)
+	err = json.Unmarshal(b, &resp)
 
 	if err != nil {
 		httpError(&w, 500, "backend error - "+err.Error())
 		return
 	}
 
-	Debugln(resp.userId)
+	requesteeId := resp.UserId
 
-	requesteeId := resp.userId
-
-	// requesteeId, _ := strconv.Atoi(resp.userId)
+	// requesteeId, _ := strconv.Atoi(resp.UserId)
 
 	if requesterId == requesteeId {
 		httpError(&w, 300, "you can't ask a friend request to yourself")
@@ -229,6 +225,13 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	var ret int
 
+	err = db.QueryRow(`SELECT id FROM FriendRequests WHERE senderId = ? AND reciverId = ?;`, requesteeId, requesterId).Scan(&ret) // .Scan(convId)
+
+	if err != sql.ErrNoRows {
+		httpError(&w, 500, "request already exists")
+		return
+	}
+
 	err = db.QueryRow(`SELECT id FROM FriendRequests WHERE senderId = ? AND reciverId = ?;`, requesterId, requesteeId).Scan(&ret) // .Scan(convId)
 
 	if err != sql.ErrNoRows {
@@ -241,15 +244,6 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err = sql.Open("mysql", databaseString)
-
-	if err != nil {
-		httpError(&w, 500, "backend error: "+err.Error())
-		return
-	}
-
-	defer db.Close()
-
 	_, err = db.Exec(`INSERT INTO FriendRequests (senderId, reciverId) VALUES (?, ?);`, requesterId, requesteeId) // .Scan(convId)
 
 	if err != nil && err != sql.ErrNoRows {
@@ -261,6 +255,13 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func getFriendRequest(w http.ResponseWriter, r *http.Request) {
+
+	type RespData struct {
+		Id       int `json:"id"`
+		SenderId int `json:"senderId"`
+		Username int `json:"usr"`
+	}
+
 	fmt.Println("endpoint hit: get friend request")
 
 	parts := strings.Split(r.Header.Get("Authorization"), "Bearer")
@@ -290,7 +291,7 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := db.Query(`
-	SELECT f.id, f.senderId, u.username
+	SELECT f.id as id, f.senderId as sender, u.username as usr
 	FROM FriendRequests f INNER JOIN Users u ON u.id = f.senderId
 	WHERE f.reciverId = ? ;
 	`, userId)
@@ -299,7 +300,7 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	if err == sql.ErrNoRows {
 		var r []string
-		httpSuccessf(&w, 200, "data", r)
+		httpSuccessf(&w, 200, "data:%v", r)
 		return
 	}
 
@@ -308,22 +309,26 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var convs []Conversation
+	Debugln(res)
+
+	var requests []RespData
 
 	for res.Next() {
-		var conv Conversation
+		var req RespData
 
-		err := res.Scan(&conv.Id, &conv.Name, &conv.Description)
+		err := res.Scan(&req.Id, &req.SenderId, &req.Username)
 
 		if err != nil {
 			httpError(&w, 500, err)
 			return
 		}
 
-		convs = append(convs, conv)
+		requests = append(requests, req)
 	}
 
-	a, _ := json.Marshal(convs)
+	a, _ := json.Marshal(requests)
+
+	Debugln(requests)
 
 	httpSuccessf(&w, 200, "data", string(a))
 }
