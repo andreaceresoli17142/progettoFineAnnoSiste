@@ -40,7 +40,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		httpError(&w, 500, err)
+		httpError(&w, 500, "backend error: "+err.Error())
 		return
 	}
 
@@ -110,7 +110,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	retStr, _ := json.Marshal(Conversations)
 
-	httpSuccessf(&w, 200, "%v", string(retStr))
+	httpSuccessf(&w, 200, `"data":%v`, string(retStr))
 }
 
 func addToGroup(w http.ResponseWriter, r *http.Request) {
@@ -136,13 +136,11 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		httpError(&w, 500, err)
+		httpError(&w, 500, "backend error: "+err.Error())
 		return
 	}
 
 	defer db.Close()
-
-	Debugln(resp)
 
 	var i int
 
@@ -159,8 +157,6 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = (?) AND user = (?);`, resp.GroupId, resp.UserId).Scan(&i)
-
-	Debugln(i)
 
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -228,6 +224,13 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	var ret int
 
+	err = db.QueryRow(`SELECT * FROM PrivateMessages p1, PrivateMessages p2 WHERE p1.id = p2.id AND p1.user <> p2.user AND p1.user = ? AND p2.user = ?;`, requesteeId, requesterId).Scan(&ret) // .Scan(convId)
+
+	if err != sql.ErrNoRows {
+		httpError(&w, 500, "you are already friends with this user")
+		return
+	}
+
 	err = db.QueryRow(`SELECT id FROM FriendRequests WHERE senderId = ? AND reciverId = ?;`, requesteeId, requesterId).Scan(&ret) // .Scan(convId)
 
 	if err != sql.ErrNoRows {
@@ -278,9 +281,80 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type RespData struct {
-		Id       int `json:"id"`
-		SenderId int `json:"senderId"`
-		Username int `json:"usr"`
+		Id       int    `json:"id"`
+		SenderId int    `json:"senderId"`
+		Username string `json:"usr"`
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	defer db.Close()
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	res, err := db.Query(`
+		SELECT f.id as id, f.senderId as sender, u.username as usr
+		FROM FriendRequests f INNER JOIN Users u ON u.id = f.senderId
+		WHERE f.reciverId = ? ;
+	`, userId)
+
+	//! is this even userful?
+	defer res.Close()
+
+	if err == sql.ErrNoRows {
+		var r []string
+		httpSuccessf(&w, 200, `"data":%v`, r)
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	var requests []RespData
+
+	for res.Next() {
+		var req RespData
+
+		err := res.Scan(&req.Id, &req.SenderId, &req.Username)
+
+		if err != nil {
+			httpError(&w, 500, "backend error: "+err.Error())
+			return
+		}
+
+		requests = append(requests, req)
+	}
+
+	a, _ := json.Marshal(requests)
+
+	httpSuccessf(&w, 200, `"data":%v`, string(a))
+}
+
+func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: accept friend request")
+
+	type Res struct {
+		S  int `json:"s"`
+		Id int `json:"id"`
+	}
+
+	b, err := ioutil.ReadAll(r.Body)
+
+	var resp Res
+
+	// err = httpGetBody(r, &resp)
+	err = json.Unmarshal(b, &resp)
+
+	userId := resp.S
+	reqId := resp.Id
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
 	}
 
 	db, err := sql.Open("mysql", databaseString)
@@ -292,47 +366,63 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Query(`
-	SELECT f.id as id, f.senderId as sender, u.username as usr
-	FROM FriendRequests f INNER JOIN Users u ON u.id = f.senderId
-	WHERE f.reciverId = ? ;
-	`, userId)
+	var sender int
 
-	defer res.Close()
+	err = db.QueryRow(`
+		SELECT senderId
+		FROM FriendRequests
+		WHERE id = ? AND reciverId = ? ;
+	`, reqId, userId).Scan(&sender)
 
 	if err == sql.ErrNoRows {
-		var r []string
-		httpSuccessf(&w, 200, "data:%v", r)
+		httpError(&w, 300, "request does not exists")
 		return
 	}
 
 	if err != nil {
-		httpError(&w, 500, err)
+		httpError(&w, 500, "error executing query: "+err.Error())
 		return
 	}
 
-	Debugln(res)
+	_, err = db.Exec(`
+		DELETE FROM FriendRequests
+		WHERE id = ? AND reciverId = ?;
+	`, reqId, userId)
 
-	var requests []RespData
-
-	for res.Next() {
-		var req RespData
-
-		err := res.Scan(&req.Id, &req.SenderId, &req.Username)
-
-		if err != nil {
-			httpError(&w, 500, err)
-			return
-		}
-
-		requests = append(requests, req)
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
 	}
 
-	a, _ := json.Marshal(requests)
+	var maxPm int
 
-	Debugln(a)
+	err = db.QueryRow(`SELECT MAX(id) FROM PrivateMessages;`).Scan(&maxPm)
 
-	httpSuccessf(&w, 200, "data: %v", string(a))
+	if err == sql.ErrNoRows {
+		maxPm = 0
+	}
+
+	if err != nil {
+		httpError(&w, 500, "error executing query: "+err.Error())
+		return
+	}
+
+	maxPm++
+
+	_, err = db.Exec(`
+		INSERT INTO PrivateMessages (id, user)
+		VALUES
+		( ?, ? ),
+		( ?, ? );
+	`, maxPm, sender, maxPm, userId)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	httpSuccess(&w, 200, "request accepted succesfully")
+
 }
 
 //}}}
