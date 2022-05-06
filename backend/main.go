@@ -53,7 +53,6 @@ func handleRequests() {
 	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET", "OPTIONS")
 	myRouter.HandleFunc("/signin", signIn).Methods("POST", "OPTIONS")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
-	myRouter.HandleFunc("/getconversations", getConversations).Methods("GET", "OPTIONS")
 	myRouter.HandleFunc("/websock", initSocket).Methods("GET", "OPTIONS")
 
 	oauthRouter := myRouter.PathPrefix("/oauth").Subrouter()
@@ -73,6 +72,10 @@ func handleRequests() {
 	freqRouter := myRouter.PathPrefix("/freq").Subrouter()
 	freqRouter.HandleFunc("/makereq", makeFriendRequest).Methods("POST", "OPTIONS")
 	freqRouter.HandleFunc("/getreq", getFriendRequest).Methods("GET", "OPTIONS")
+
+	msgRouter := myRouter.PathPrefix("/msg").Subrouter()
+	msgRouter.HandleFunc("/getconv", getConversations).Methods("GET", "OPTIONS")
+	msgRouter.HandleFunc("/addtogroup", addToGroup).Methods("POST", "OPTIONS")
 
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}

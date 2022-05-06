@@ -6,187 +6,20 @@ import ( // {{{
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
 
-// get conversations {{{
+// conversations {{{
+//! MOSTLY OK, httpGetBody IS NOT WORKING
 func getConversations(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get conversations")
-	access_token := BearerAuthHeader(r.Header.Get("Authorization"))
 
-	usr_id, err := getAccessToken_usrid(access_token)
-
-	if err != nil {
-		httpError(&w, 500, err)
-		return
-	}
-
-	if usr_id == -1 {
-		httpError(&w, 300, "invalid access token")
-		return
-	}
-
-	db, err := sql.Open("mysql", databaseString)
-
-	defer db.Close()
-
-	if err != nil {
-		httpError(&w, 500, err)
-		return
-	}
-
-	res, err := db.Query("SELECT c.id as id, cn.name as name, cn.description as description FROM Conversations c INNER JOIN ConversationName cn WHERE c.participantId = (?) GROUP BY c.id;", usr_id)
-
-	defer res.Close()
-
-	if err == sql.ErrNoRows {
-		var r []string
-		httpSuccessf(&w, 200, `data:"%s"`, r)
-		return
-	}
-
-	if err != nil {
-		httpError(&w, 500, err)
-		return
-	}
-
-	var convs []Conversation
-
-	for res.Next() {
-		var conv Conversation
-
-		err := res.Scan(&conv.Id, &conv.Name, &conv.Description)
-
-		if err != nil {
-			httpError(&w, 500, err)
-			return
-		}
-
-		convs = append(convs, conv)
-	}
-
-	a, _ := json.Marshal(convs)
-
-	httpSuccessf(&w, 200, `data:%s`, string(a))
-}
-
-//! NEEDS TESTING AND REFACTORING, CODE SEEMS UNINTUITIVE
-// takes userid, name and description, if description is empty we are creaing a conversation otherwise we are creating a group
-// then create conversation, add user and data, return conversation id
-func addConversations(userId int, name string, description string) (int, error) {
-
-	// generating conversation id
-	db, err := sql.Open("mysql", databaseString)
-
-	if err != nil {
-		return -1, AppendError("error: addConversation", err)
-	}
-
-	defer db.Close()
-
-	var convId int
-	err = db.QueryRow(`SELECT COUNT(*) FROM (SELECT * FROM Conversations GROUP BY id) as a;`).Scan(convId)
-
-	if err == sql.ErrNoRows {
-		return -1, AppendError("error: addConversation", err)
-	}
-
-	if err != nil {
-		return -1, AppendError("error: addConversation", err)
-	}
-
-	convId = convId + 1
-	// finished conversation id
-
-	// adding conversation
-	db, err = sql.Open("mysql", databaseString)
-
-	if err != nil {
-		return -1, AppendError("error: addConversation", err)
-	}
-
-	defer db.Close()
-
-	err = db.QueryRow(`INSERT INTO Conversations (id, participantId) VALUES (?, ?);`, convId, userId).Scan() // .Scan(convId)
-
-	// if err == sql.ErrNoRows {
-	// 	return -1, AppendError("error: addConversation", err)
-	// }
-
-	if err != nil {
-		return -1, AppendError("error: addConversation", err)
-	}
-	// finised adding conversation
-
-	// if the conversation is not a group exit the function
-	if name == "" {
-		return convId, nil
-	}
-
-	// adding conversation name and description
-	db, err = sql.Open("mysql", databaseString)
-
-	if err != nil {
-		return -1, AppendError("error: addConversation", err)
-	}
-
-	defer db.Close()
-
-	// if description is set then add it
-	if description != "" {
-		err = db.QueryRow(`INSERT INTO GroupName ( name, description ) VALUES (?, ?);`, name, description).Scan() // .Scan(convId)
-	} else { // otherwise set descritpion as null
-		err = db.QueryRow(`INSERT INTO GroupName ( name, description ) VALUES (?, ?);`, name, nil).Scan() // .Scan(convId)
-	}
-
-	// if err == sql.ErrNoRows {
-	// 	return -1, AppendError("error: addConversation", err)
-	// }
-
-	if err != nil {
-		return -1, AppendError("error: addConversation", err)
-	}
-
-	return convId, nil
-}
-
-func addUserToConv(convId int, userId int) error {
-	db, err := sql.Open("mysql", databaseString)
-
-	if err != nil {
-		return AppendError("error: addUserToConv", err)
-	}
-
-	defer db.Close()
-
-	err = db.QueryRow(`INSERT INTO Conversations (id, participantId) VALUES (?, ?);`, convId, userId).Scan() // .Scan(convId)
-
-	// if err == sql.ErrNoRows {
-	// 	return AppendError("error: addUserToConv", err)
-	// }
-
-	if err != nil {
-		return AppendError("error: addUserToConv", err)
-	}
-	return nil
-}
-
-// }}}
-
-// firends requests {{{
-
-func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: get friend request")
-
-	access_token := BearerAuthHeader(r.Header.Get("Authorization"))
-
-	requesterId, err := getAccessToken_usrid(access_token)
-
-	if err != nil || requesterId == -1 {
-		httpError(&w, 500, "Error getting access token")
-		return
+	type Convs struct {
+		Id          string `json:"convId"db:"id"`
+		Name        string `json:"name"db:"name"`
+		Description string `json:"description"db:description`
 	}
 
 	b, err := ioutil.ReadAll(r.Body)
@@ -201,9 +34,179 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(b, &resp)
 
 	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT p.id AS id, u.username AS name, u.state AS description
+		FROM PrivateMessages p INNER JOIN Users u ON p.user = u.id
+		WHERE u.id <> ? AND p.id IN (
+			SELECT id
+			FROM PrivateMessages
+			WHERE user = ?
+		)
+	`, resp.UserId, resp.UserId)
+
+	if err != nil {
+		httpError(&w, 500, "error doing query: "+err.Error())
+		return
+	}
+
+	var Conversations []Convs
+
+	for rows.Next() {
+		var conv Convs
+
+		var tmpId int
+
+		if err := rows.Scan(&tmpId, &conv.Name, &conv.Description); err != nil {
+			httpError(&w, 500, "error getting query data: "+err.Error())
+			return
+		}
+
+		conv.Id = "P" + strconv.Itoa(tmpId)
+
+		Conversations = append(Conversations, conv)
+	}
+
+	rows, err = db.Query(`
+		SELECT *
+		FROM GroupNames
+		WHERE id IN (
+			SELECT id
+			FROM GroupMembers
+			WHERE user = ?
+		)
+	`, resp.UserId)
+
+	if err != nil {
+		httpError(&w, 500, "error doing query: "+err.Error())
+		return
+	}
+
+	for rows.Next() {
+		var conv Convs
+
+		var tmpId int
+
+		if err := rows.Scan(&tmpId, &conv.Name, &conv.Description); err != nil {
+			httpError(&w, 500, "error getting query data: "+err.Error())
+			return
+		}
+
+		conv.Id = "G" + strconv.Itoa(tmpId)
+
+		Conversations = append(Conversations, conv)
+	}
+
+	retStr, _ := json.Marshal(Conversations)
+
+	httpSuccessf(&w, 200, "%v", string(retStr))
+}
+
+func addToGroup(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: get conversations")
+
+	b, err := ioutil.ReadAll(r.Body)
+
+	type ReqData struct {
+		Sender  int `json:"s"`
+		GroupId int `json:"groupid"`
+		UserId  int `json:"userid"`
+	}
+
+	var resp ReqData
+
+	// err = httpGetBody(r, &resp)
+	err = json.Unmarshal(b, &resp)
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	defer db.Close()
+
+	Debugln(resp)
+
+	var i int
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if err != nil && err == sql.ErrNoRows {
+		httpError(&w, 300, "you are not in the selected group")
+		return
+	}
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = (?) AND user = (?);`, resp.GroupId, resp.UserId).Scan(&i)
+
+	Debugln(i)
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			httpError(&w, 500, "error doing control query: "+err.Error())
+			return
+		}
+	} else {
+		httpError(&w, 300, "user is in the selected group")
+		return
+	}
+
+	_, err = db.Exec(`INSERT INTO GroupMembers (id, user) VALUES (?, ?);`, resp.GroupId, resp.UserId) // .Scan(convId)
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	httpSuccess(&w, 200, "success")
+}
+
+// }}}
+
+// firends requests {{{
+
+func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: get friend request")
+
+	b, err := ioutil.ReadAll(r.Body)
+
+	type ReqData struct {
+		S      int `json:"s"`
+		UserId int `json:"userid"`
+	}
+
+	var resp ReqData
+
+	// err = httpGetBody(r, &resp)
+	err = json.Unmarshal(b, &resp)
+
+	if err != nil {
 		httpError(&w, 500, "backend error - "+err.Error())
 		return
 	}
+
+	requesterId := resp.S
 
 	requesteeId := resp.UserId
 
@@ -255,30 +258,29 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func getFriendRequest(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: get friend request")
+
+	type Res struct {
+		S int `json:"s"`
+	}
+
+	b, err := ioutil.ReadAll(r.Body)
+
+	var resp Res
+
+	// err = httpGetBody(r, &resp)
+	err = json.Unmarshal(b, &resp)
+
+	userId := resp.S
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+	}
 
 	type RespData struct {
 		Id       int `json:"id"`
 		SenderId int `json:"senderId"`
 		Username int `json:"usr"`
-	}
-
-	fmt.Println("endpoint hit: get friend request")
-
-	parts := strings.Split(r.Header.Get("Authorization"), "Bearer")
-
-	if len(parts) != 2 {
-		return
-	}
-
-	access_token := strings.TrimSpace(parts[1])
-
-	// access_token := BearerAuthHeader(r.Header.Get("Authorization"))
-
-	userId, err := getAccessToken_usrid(access_token)
-
-	if err != nil {
-		httpError(&w, 500, "access token not valid")
-		return
 	}
 
 	db, err := sql.Open("mysql", databaseString)
@@ -328,9 +330,9 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	a, _ := json.Marshal(requests)
 
-	Debugln(requests)
+	Debugln(a)
 
-	httpSuccessf(&w, 200, "data", string(a))
+	httpSuccessf(&w, 200, "data: %v", string(a))
 }
 
 //}}}

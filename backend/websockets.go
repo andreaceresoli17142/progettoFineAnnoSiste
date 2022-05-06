@@ -33,7 +33,7 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		Debugln(message)
+		Debugln(string(message[:]))
 
 		if err = c.WriteMessage(messageType, message); err != nil {
 			httpError(&w, 500, "error sending message")
