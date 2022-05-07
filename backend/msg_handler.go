@@ -4,7 +4,6 @@ import ( // {{{
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -22,7 +21,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 		Description string `json:"description"db:description`
 	}
 
-	b, err := ioutil.ReadAll(r.Body)
+	// b, err := ioutil.ReadAll(r.Body)
 
 	type ReqData struct {
 		UserId int `json:"userid"`
@@ -30,8 +29,8 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	var resp ReqData
 
-	// err = httpGetBody(r, &resp)
-	err = json.Unmarshal(b, &resp)
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
@@ -114,9 +113,9 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 }
 
 func addToGroup(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: get conversations")
+	fmt.Println("endpoint hit: add user to group")
 
-	b, err := ioutil.ReadAll(r.Body)
+	// b, err := ioutil.ReadAll(r.Body)
 
 	type ReqData struct {
 		Sender  int `json:"s"`
@@ -126,8 +125,8 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 
 	var resp ReqData
 
-	// err = httpGetBody(r, &resp)
-	err = json.Unmarshal(b, &resp)
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
@@ -183,9 +182,9 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 // firends requests {{{
 
 func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: get friend request")
+	fmt.Println("endpoint hit: make friend request")
 
-	b, err := ioutil.ReadAll(r.Body)
+	// b, err := ioutil.ReadAll(r.Body)
 
 	type ReqData struct {
 		S      int `json:"s"`
@@ -194,8 +193,8 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	var resp ReqData
 
-	// err = httpGetBody(r, &resp)
-	err = json.Unmarshal(b, &resp)
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
 
 	if err != nil {
 		httpError(&w, 500, "backend error - "+err.Error())
@@ -267,12 +266,12 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 		S int `json:"s"`
 	}
 
-	b, err := ioutil.ReadAll(r.Body)
+	// b, err := ioutil.ReadAll(r.Body)
 
 	var resp Res
 
-	// err = httpGetBody(r, &resp)
-	err = json.Unmarshal(b, &resp)
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
 
 	userId := resp.S
 
@@ -343,12 +342,12 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 		Id int `json:"id"`
 	}
 
-	b, err := ioutil.ReadAll(r.Body)
+	// b, err := ioutil.ReadAll(r.Body)
 
 	var resp Res
 
-	// err = httpGetBody(r, &resp)
-	err = json.Unmarshal(b, &resp)
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
 
 	userId := resp.S
 	reqId := resp.Id
@@ -422,7 +421,6 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpSuccess(&w, 200, "request accepted succesfully")
-
 }
 
 //}}}

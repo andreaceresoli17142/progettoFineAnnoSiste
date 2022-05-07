@@ -127,8 +127,8 @@ func httpSuccessf(w *http.ResponseWriter, code int, s string, args ...interface{
 func httpGetBody(r *http.Request, v interface{}) error {
 	b, err := ioutil.ReadAll(r.Body)
 
-	Debugln(string(b))
-	Debugln(v)
+	// Debugln(string(b))
+	// Debugln(v)
 
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func httpGetBody(r *http.Request, v interface{}) error {
 
 	err = json.Unmarshal(b, &v)
 
-	Debugln(v)
+	// Debugln(v)
 
 	if err != nil {
 		return err

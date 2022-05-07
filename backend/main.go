@@ -45,6 +45,26 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func testData(w http.ResponseWriter, r *http.Request) {
+
+	type Req struct {
+		A int    `json:"a"`
+		B string `json:"b"`
+		C bool   `json:"c"`
+	}
+
+	var re Req
+
+	err := httpGetBody(r, &re)
+
+	if err != nil {
+		Debugln(err)
+		return
+	}
+
+	Debugln(re)
+}
+
 // route endpoints {{{
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
@@ -54,6 +74,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/signin", signIn).Methods("POST", "OPTIONS")
 	myRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
 	myRouter.HandleFunc("/websock", initSocket).Methods("GET", "OPTIONS")
+	myRouter.HandleFunc("/test", testData).Methods("GET", "OPTIONS")
 
 	oauthRouter := myRouter.PathPrefix("/oauth").Subrouter()
 	oauthRouter.HandleFunc("/", paleoIdAuth).Methods("GET", "OPTIONS")
