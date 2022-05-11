@@ -98,6 +98,7 @@ func handleRequests() {
 	msgRouter := myRouter.PathPrefix("/msg").Subrouter()
 	msgRouter.HandleFunc("/getconv", getConversations).Methods("GET", "OPTIONS")
 	msgRouter.HandleFunc("/addtogroup", addToGroup).Methods("POST", "OPTIONS")
+	msgRouter.HandleFunc("/send", sendMessage).Methods("POST", "OPTIONS")
 
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
 } // }}}

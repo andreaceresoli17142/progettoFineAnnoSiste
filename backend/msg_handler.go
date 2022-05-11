@@ -180,7 +180,6 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 // }}}
 
 // firends requests {{{
-
 func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: make friend request")
 
@@ -424,3 +423,78 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 //}}}
+
+// messages {{{
+func sendMessage(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: accept friend request")
+
+	type Res struct {
+		S    int    `json:"s"`
+		Id   string `json:"id"`
+		Text string `json:"text"`
+	}
+
+	// b, err := ioutil.ReadAll(r.Body)
+
+	var resp Res
+
+	err := httpGetBody(r, &resp)
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+	}
+
+	reqId := resp.S
+
+	// conType := resp.Id[len(resp.Id)-1:]
+
+	id, _ := strconv.Atoi(resp.Id[:len(resp.Id)-1])
+
+	db, err := sql.Open("mysql", databaseString)
+
+	defer db.Close()
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	var sender int
+
+	// table := ""
+
+	// if conType == "P" {
+	// 	table = "PrivateMessages"
+	// } else if conType == "G" {
+	// 	table = "GroupMembers"
+	// }
+
+	err = db.QueryRow(`
+		SELECT user
+		FROM PrivateMessages
+		WHERE id = ? AND user = ?;
+	`, id, reqId).Scan(&sender)
+
+	if err == sql.ErrNoRows {
+		httpError(&w, 300, "conversation does not exists")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO Messages ( conv, content ) VALUES ( ?, ? ) ;
+	`, resp.Id, resp.Text)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	httpSuccess(&w, 200, "message sent succesfully")
+}
+
+// }}}
