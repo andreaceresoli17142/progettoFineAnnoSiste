@@ -166,3 +166,10 @@ func boolToInt(val bool) int {
 	}
 	return 0
 }
+
+func intToBool(val int) bool {
+	if val == 0 {
+		return false
+	}
+	return true
+}

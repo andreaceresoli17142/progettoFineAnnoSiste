@@ -86,7 +86,8 @@ func handleRequests() {
 	freqRouter.HandleFunc("/accreq", acceptFriendRequest).Methods("POST", "OPTIONS")
 	freqRouter.HandleFunc("/getreq", getFriendRequest).Methods("GET", "OPTIONS")
 
-	rootRouter.HandleFunc("/getconv", getConversations).Methods("POST", "OPTIONS")
+	rootRouter.HandleFunc("/getconv", getConversations).Methods("GET", "OPTIONS")
+	rootRouter.HandleFunc("/getsingleconv", getSingleConversation).Methods("GET", "OPTIONS")
 
 	groupRouter := rootRouter.PathPrefix("/group").Subrouter()
 	groupRouter.HandleFunc("/adduser", addToGroup).Methods("POST", "OPTIONS")

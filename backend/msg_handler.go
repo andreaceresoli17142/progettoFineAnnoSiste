@@ -10,6 +10,11 @@ import ( // {{{
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
 
+//TODO: add message time
+//TODO: modifiable profile pics
+//TODO: modifiable statuses
+//TODO: add read message
+
 // conversations {{{
 func getConversations(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get conversations")
@@ -17,24 +22,34 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	type Convs struct {
 		Id          string `json:"convId"db:"id"`
 		Name        string `json:"name"db:"name"`
-		Description string `json:"description"db:description`
+		Description string `json:"description"db:"description"`
+		ProfilePic  bool   `json:"pfp"`
 	}
 
 	// b, err := ioutil.ReadAll(r.Body)
 
-	type ReqData struct {
-		UserId int `json:"userid"`
-	}
+	v := r.URL.Query()
 
-	var resp ReqData
+	userId, _ := strconv.Atoi(v.Get("S"))
 
-	err := httpGetBody(r, &resp)
-	// err = json.Unmarshal(b, &resp)
-
-	if err != nil {
-		httpError(&w, 500, "error getting body: "+err.Error())
+	if userId == 0 {
+		httpError(&w, 300, "missing parameters")
 		return
 	}
+
+	// type ReqData struct {
+	// 	UserId int `json:"userid"`
+	// }
+
+	// var resp ReqData
+
+	// err := httpGetBody(r, &resp)
+	// // err = json.Unmarshal(b, &resp)
+
+	// if err != nil {
+	// 	httpError(&w, 500, "error getting body: "+err.Error())
+	// 	return
+	// }
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -46,14 +61,14 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	rows, err := db.Query(`
-		SELECT p.id AS id, u.username AS name, u.state AS description
+		SELECT p.id AS id, u.username AS name, u.state AS description, u.profilePic
 		FROM PrivateMessages p INNER JOIN Users u ON p.user = u.id
 		WHERE u.id <> ? AND p.id IN (
 			SELECT id
 			FROM PrivateMessages
 			WHERE user = ?
 		)
-	`, resp.UserId, resp.UserId)
+	`, userId, userId)
 
 	if err != nil {
 		httpError(&w, 500, "error doing query: "+err.Error())
@@ -65,12 +80,17 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var conv Convs
 
-		var tmpId int
+		var (
+			tmpId int
+			pfp   int
+		)
 
-		if err := rows.Scan(&tmpId, &conv.Name, &conv.Description); err != nil {
+		if err := rows.Scan(&tmpId, &conv.Name, &conv.Description, &pfp); err != nil {
 			httpError(&w, 500, "error getting query data: "+err.Error())
 			return
 		}
+
+		conv.ProfilePic = intToBool(pfp)
 
 		conv.Id = "P" + strconv.Itoa(tmpId)
 
@@ -85,7 +105,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 			FROM GroupMembers
 			WHERE user = ?
 		)
-	`, resp.UserId)
+	`, userId)
 
 	if err != nil {
 		httpError(&w, 500, "error doing query: "+err.Error())
@@ -95,12 +115,17 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var conv Convs
 
-		var tmpId int
+		var (
+			tmpId int
+			pfp   int
+		)
 
-		if err := rows.Scan(&tmpId, &conv.Name, &conv.Description); err != nil {
+		if err := rows.Scan(&tmpId, &conv.Name, &conv.Description, &pfp); err != nil {
 			httpError(&w, 500, "error getting query data: "+err.Error())
 			return
 		}
+
+		conv.ProfilePic = intToBool(pfp)
 
 		conv.Id = "G" + strconv.Itoa(tmpId)
 
@@ -108,6 +133,88 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	retStr, _ := json.Marshal(Conversations)
+
+	httpSuccessf(&w, 200, `"data":%v`, string(retStr))
+}
+
+func getSingleConversation(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: get conversations")
+
+	type Convs struct {
+		Id          string `json:"convId"db:"id"`
+		Name        string `json:"name"db:"name"`
+		Description string `json:"description"db:"description"`
+		ProfilePic  bool   `json:"pfp"`
+	}
+
+	var convData Convs
+
+	// b, err := ioutil.ReadAll(r.Body)
+
+	v := r.URL.Query()
+
+	userId, _ := strconv.Atoi(v.Get("S"))
+	tmpId := v.Get("convid")
+	convId, _ := strconv.Atoi(tmpId[1:])
+	conType := string(tmpId[0])
+
+	if userId == 0 {
+		httpError(&w, 300, "missing parameters")
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var usrD *sql.Row
+
+	// Debugln(tmpId)
+	// Debugln(convId)
+	// Debugln(userId)
+
+	if conType == "P" {
+		usrD = db.QueryRow(`
+			SELECT id, username AS name, state, profilePic
+			FROM Users
+			WHERE id = (
+				SELECT user
+				FROM PrivateMessages
+				WHERE id = ? AND user <> ?
+			)
+		`, convId, userId)
+	} else if conType == "G" {
+		usrD = db.QueryRow(`
+			SELECT id, name AS name, description, profilePic
+			FROM GroupNames
+			WHERE id = (
+				SELECT id
+				FROM GroupMembers
+				WHERE id = ? AND user = ?
+			)
+		`, userId, convId)
+	} else {
+		httpError(&w, 300, "coversation type does not exist")
+		return
+	}
+
+	err = usrD.Scan(&convData.Id, &convData.Name, &convData.Description, &convData.ProfilePic)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			httpError(&w, 300, "conv does not exists")
+			return
+		}
+		httpError(&w, 500, "error doing query: "+err.Error())
+		return
+	}
+
+	retStr, _ := json.Marshal(convData)
 
 	httpSuccessf(&w, 200, `"data":%v`, string(retStr))
 }
@@ -817,28 +924,30 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 //? implementare paginazione?
 func getMessages(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get messages")
+	v := r.URL.Query()
 
-	type Res struct {
-		S  int    `json:"s"`
-		Id string `json:"convid"`
-	}
+	user, _ := strconv.Atoi(v.Get("S"))
+	convid := v.Get("convid")
 
-	var resp Res
-
-	err := httpGetBody(r, &resp)
-
-	if err != nil {
-		httpError(&w, 500, "error getting body: "+err.Error())
+	if user == 0 || convid == "" {
+		httpError(&w, 300, "missing parameters")
 		return
 	}
 
-	user := resp.S
+	// err := httpGetBody(r, &resp)
 
-	convid := resp.Id
+	// if err != nil {
+	// 	httpError(&w, 500, "error getting body: "+err.Error())
+	// 	return
+	// }
 
-	conType := string(resp.Id[0])
+	// user := resp.S
 
-	id, _ := strconv.Atoi(resp.Id[len(resp.Id)-1:])
+	// convid := resp.Id
+
+	conType := string(convid[0])
+
+	id, _ := strconv.Atoi(convid[len(convid)-1:])
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -879,9 +988,9 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.Query(`
-		SELECT id, senderId, content
-		FROM Messages
-		WHERE conv = ?
+		SELECT m.id AS id, m.senderId AS senderId, u.username AS username, m.content AS content, m.time AS time
+		FROM Messages m INNER JOIN Users u ON m.senderId = u.id
+		WHERE m.conv = ?
 	`, convid)
 
 	if err != nil {
@@ -890,9 +999,11 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type Message struct {
-		Id   int    `db:"id"`
-		User int    `db:"senderId"`
-		Text string `db:"content"`
+		Id       int    `db:"id"`
+		UserId   int    `db:"senderId"`
+		Username string `db:"username"`
+		Text     string `db:"content"`
+		Time     string `db:"time"`
 	}
 
 	var messages []Message
@@ -900,7 +1011,7 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var mess Message
 
-		if err := rows.Scan(&mess.Id, &mess.User, &mess.Text); err != nil {
+		if err := rows.Scan(&mess.Id, &mess.UserId, &mess.Username, &mess.Text, &mess.Time); err != nil {
 			httpError(&w, 500, "error getting query data: "+err.Error())
 			return
 		}
