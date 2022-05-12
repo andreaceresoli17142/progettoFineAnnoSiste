@@ -9,7 +9,7 @@ CREATE TABLE Users (
     username VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL,
     date_of_join DATE NOT NULL,
-    state VARCHAR(200) NOT NULL,
+    state VARCHAR(200) NOT NULL DEFAULT "hello im not using whatsapp!",
     salt INT NOT NULL,
     pHash CHAR(64) NOT NULL,
 	last_login TIMESTAMP NOT NULL,
@@ -30,7 +30,8 @@ CREATE TABLE PrivateMessages (
 
 CREATE TABLE GroupMembers (
     id INT NOT NULL,
-    user INT NOT NULL
+    user INT NOT NULL,
+    isAdmin BOOL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE GroupNames (
@@ -42,6 +43,7 @@ CREATE TABLE GroupNames (
 
 CREATE TABLE Messages (
     id INT NOT NULL AUTO_INCREMENT,
+    senderId INT NOT NULL,
     conv TEXT NOT NULL, -- specifies the group or pm where the message was written (P for pm's, G for groups)
     content VARCHAR(300) NOT NULL,
     attachment VARCHAR(150),
@@ -90,6 +92,9 @@ CREATE TABLE LoginState (
 INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_login ) VALUES ( "pima", "pippo.mario@gimelli.com", CURRENT_DATE(), "io essere pippo", 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP() );
 
 INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_login) VALUES ( "taurone", "taurone.mario@gimelli.com", CURRENT_DATE(), "no job gang", 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP());
+
+INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_login) VALUES ( "taurone", "taurone.mario@gimelli.com", CURRENT_DATE(), "no job gang", 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP());
+
 
 INSERT INTO PrivateMessages ( id, user ) VALUES ( 1, 1 );
 INSERT INTO PrivateMessages ( id, user ) VALUES ( 1, 2 );

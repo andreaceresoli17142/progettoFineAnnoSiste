@@ -47,60 +47,59 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func testData(w http.ResponseWriter, r *http.Request) {
 
-	type Req struct {
-		A int    `json:"a"`
-		B string `json:"b"`
-		C bool   `json:"c"`
-	}
-
-	var re Req
-
-	err := httpGetBody(r, &re)
+	err := socketSendNotification(1)
 
 	if err != nil {
-		Debugln(err)
-		return
+		Debugln("error sending message notification: " + err.Error())
 	}
 
-	Debugln(re)
 }
 
 // route endpoints {{{
 func handleRequests() {
-	myRouter := mux.NewRouter().StrictSlash(true)
+	rootRouter := mux.NewRouter().StrictSlash(true)
 
-	myRouter.HandleFunc("/", homePage) //.Schemes("https")
-	myRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET", "OPTIONS")
-	myRouter.HandleFunc("/signin", signIn).Methods("POST", "OPTIONS")
-	myRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
-	myRouter.HandleFunc("/websock", initSocket).Methods("GET", "OPTIONS")
-	myRouter.HandleFunc("/test", testData).Methods("GET", "OPTIONS")
+	rootRouter.HandleFunc("/", homePage) //.Schemes("https")
+	rootRouter.HandleFunc("/getusrdata", getUserDataReq).Methods("GET", "OPTIONS")
+	rootRouter.HandleFunc("/signin", signIn).Methods("POST", "OPTIONS")
+	rootRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
+	rootRouter.HandleFunc("/websock", initSocket).Methods("GET", "OPTIONS")
+	rootRouter.HandleFunc("/test", testData).Methods("GET", "OPTIONS")
 
-	oauthRouter := myRouter.PathPrefix("/oauth").Subrouter()
+	//TODO: https://github.com/dghubble/gologin
+	oauthRouter := rootRouter.PathPrefix("/oauth").Subrouter()
 	oauthRouter.HandleFunc("/", paleoIdAuth).Methods("GET", "OPTIONS")
 	oauthRouter.HandleFunc("/getlink", getOauthLink).Methods("GET", "OPTIONS")
 	oauthRouter.HandleFunc("/signin", signInOauth).Methods("POST", "OPTIONS")
 	oauthRouter.HandleFunc("/gettkcoup/{state}", oauthGetTokenCouple).Methods("GET", "OPTIONS")
 
-	authRouter := myRouter.PathPrefix("/auth").Subrouter()
+	authRouter := rootRouter.PathPrefix("/auth").Subrouter()
 	authRouter.HandleFunc("/login", login).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/userft", refreshTokenReq).Methods("POST", "OPTIONS")
 
-	pwrRouter := myRouter.PathPrefix("/pwr").Subrouter()
+	pwrRouter := rootRouter.PathPrefix("/pwr").Subrouter()
 	pwrRouter.HandleFunc("/getotp/{email}", send_otp_retrivePassword).Methods("GET", "OPTIONS")
 	pwrRouter.HandleFunc("/useotp", use_otp_retrivePassword).Methods("POST", "OPTIONS")
 
-	freqRouter := myRouter.PathPrefix("/freq").Subrouter()
+	freqRouter := rootRouter.PathPrefix("/freq").Subrouter()
 	freqRouter.HandleFunc("/makereq", makeFriendRequest).Methods("POST", "OPTIONS")
 	freqRouter.HandleFunc("/accreq", acceptFriendRequest).Methods("POST", "OPTIONS")
 	freqRouter.HandleFunc("/getreq", getFriendRequest).Methods("GET", "OPTIONS")
 
-	msgRouter := myRouter.PathPrefix("/msg").Subrouter()
-	msgRouter.HandleFunc("/getconv", getConversations).Methods("GET", "OPTIONS")
-	msgRouter.HandleFunc("/addtogroup", addToGroup).Methods("POST", "OPTIONS")
-	msgRouter.HandleFunc("/send", sendMessage).Methods("POST", "OPTIONS")
+	rootRouter.HandleFunc("/getconv", getConversations).Methods("POST", "OPTIONS")
 
-	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(myRouter)))
+	groupRouter := rootRouter.PathPrefix("/group").Subrouter()
+	groupRouter.HandleFunc("/adduser", addToGroup).Methods("POST", "OPTIONS")
+	groupRouter.HandleFunc("/create", createGroup).Methods("POST", "OPTIONS")
+	groupRouter.HandleFunc("/quit", quitGroup).Methods("POST", "OPTIONS")
+	groupRouter.HandleFunc("/admin/kick", adminKickUser).Methods("POST", "OPTIONS")
+	groupRouter.HandleFunc("/admin/manage", adminManage).Methods("POST", "OPTIONS")
+
+	msgRouter := rootRouter.PathPrefix("/msg").Subrouter()
+	msgRouter.HandleFunc("/send", sendMessage).Methods("POST", "OPTIONS")
+	msgRouter.HandleFunc("/read", getMessages).Methods("GET", "OPTIONS")
+
+	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(rootRouter)))
 } // }}}
 
 func init() {

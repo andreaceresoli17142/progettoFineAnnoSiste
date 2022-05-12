@@ -11,7 +11,6 @@ import ( // {{{
 ) // }}}
 
 // conversations {{{
-//! MOSTLY OK, httpGetBody IS NOT WORKING
 func getConversations(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get conversations")
 
@@ -34,6 +33,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
+		return
 	}
 
 	db, err := sql.Open("mysql", databaseString)
@@ -130,6 +130,7 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
+		return
 	}
 
 	db, err := sql.Open("mysql", databaseString)
@@ -163,11 +164,321 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		httpError(&w, 300, "user is in the selected group")
+		httpError(&w, 300, "user is not in the selected group")
 		return
 	}
 
-	_, err = db.Exec(`INSERT INTO GroupMembers (id, user) VALUES (?, ?);`, resp.GroupId, resp.UserId) // .Scan(convId)
+	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if i == 0 {
+		httpError(&w, 300, "you are not an administrator of this group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	_, err = db.Exec(`INSERT INTO GroupMembers (id, user) VALUES (?, ?);`, resp.GroupId, resp.UserId)
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	httpSuccess(&w, 200, "success")
+}
+
+func quitGroup(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: add user to group")
+
+	type ReqData struct {
+		Sender  int `json:"s"`
+		GroupId int `json:"groupid"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var i int
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if err != nil && err == sql.ErrNoRows {
+		httpError(&w, 300, "you are not in the selected group")
+		return
+	}
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if i == 0 {
+		httpError(&w, 300, "you are not an administrator of this group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
+
+	if i <= 1 {
+		httpError(&w, 300, "there has to be at least one administator in the group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	_, err = db.Exec(`DELETE FROM GroupMembers WHERE id = ? AND user = ?`, resp.GroupId, resp.Sender)
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	httpSuccess(&w, 200, "success")
+}
+
+func createGroup(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: add user to group")
+
+	type ReqData struct {
+		S         int    `json:"s"`
+		GroupName string `json:"name"`
+		GroupDesc string `json:"desc"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
+	userId := resp.S
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var groupId int64
+
+	res, err := db.Exec(`INSERT INTO GroupNames (name, description) VALUES (?, ?);`, resp.GroupName, resp.GroupDesc)
+
+	if err != nil {
+		httpError(&w, 500, "backend error")
+		return
+	}
+
+	groupId, err = res.LastInsertId()
+
+	if err != nil {
+		httpError(&w, 500, "backend error")
+		return
+	}
+
+	_, err = db.Exec(`INSERT INTO GroupMembers (id, user, isAdmin) VALUES (?, ?, true);`, groupId, userId)
+
+	if err != nil {
+		httpError(&w, 500, "backend error")
+		return
+	}
+
+	httpSuccess(&w, 200, "success")
+}
+
+func adminManage(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: admin manage")
+
+	// b, err := ioutil.ReadAll(r.Body)
+
+	type ReqData struct {
+		Sender  int  `json:"s"`
+		GroupId int  `json:"groupid"`
+		UserId  int  `json:"userid"`
+		Fvalue  bool `json:"isadmin"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var i int
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if err != nil && err == sql.ErrNoRows {
+		httpError(&w, 300, "you are not in the selected group")
+		return
+	}
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = (?) AND user = (?);`, resp.GroupId, resp.UserId).Scan(&i)
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			httpError(&w, 500, "error doing control query: "+err.Error())
+			return
+		}
+		httpError(&w, 300, "user is not in the selected group")
+		return
+	}
+
+	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if i == 0 {
+		httpError(&w, 300, "you are not an administrator of this group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
+
+	if i <= 1 && resp.Fvalue == false {
+		httpError(&w, 300, "there has to be at least one administator in the group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	_, err = db.Exec(`UPDATE GroupMembers set isAdmin = ? WHERE id = ? AND user = ?;`, boolToInt(resp.Fvalue), resp.GroupId, resp.UserId)
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	httpSuccess(&w, 200, "success")
+}
+
+func adminKickUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: admin remove user")
+
+	// b, err := ioutil.ReadAll(r.Body)
+
+	type ReqData struct {
+		Sender  int `json:"s"`
+		GroupId int `json:"groupid"`
+		UserId  int `json:"userid"`
+	}
+
+	var resp ReqData
+
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var i int
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if err != nil && err == sql.ErrNoRows {
+		httpError(&w, 300, "you are not in the selected group")
+		return
+	}
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = (?) AND user = (?);`, resp.GroupId, resp.UserId).Scan(&i)
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			httpError(&w, 500, "error doing control query: "+err.Error())
+			return
+		}
+		httpError(&w, 300, "user is not in the selected group")
+		return
+	}
+
+	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if i == 0 {
+		httpError(&w, 300, "you are not an administrator of this group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
+
+	if i <= 1 {
+		httpError(&w, 300, "there has to be at least one administator in the group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	_, err = db.Exec(`DELETE FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.UserId)
 
 	if err != nil && err != sql.ErrNoRows {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -222,21 +533,21 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	var ret int
 
-	err = db.QueryRow(`SELECT * FROM PrivateMessages p1, PrivateMessages p2 WHERE p1.id = p2.id AND p1.user <> p2.user AND p1.user = ? AND p2.user = ?;`, requesteeId, requesterId).Scan(&ret) // .Scan(convId)
+	err = db.QueryRow(`SELECT * FROM PrivateMessages p1, PrivateMessages p2 WHERE p1.id = p2.id AND p1.user <> p2.user AND p1.user = ? AND p2.user = ?;`, requesteeId, requesterId).Scan(&ret)
 
 	if err != sql.ErrNoRows {
 		httpError(&w, 500, "you are already friends with this user")
 		return
 	}
 
-	err = db.QueryRow(`SELECT id FROM FriendRequests WHERE senderId = ? AND reciverId = ?;`, requesteeId, requesterId).Scan(&ret) // .Scan(convId)
+	err = db.QueryRow(`SELECT id FROM FriendRequests WHERE senderId = ? AND reciverId = ?;`, requesteeId, requesterId).Scan(&ret)
 
 	if err != sql.ErrNoRows {
 		httpError(&w, 500, "request already exists")
 		return
 	}
 
-	err = db.QueryRow(`SELECT id FROM FriendRequests WHERE senderId = ? AND reciverId = ?;`, requesterId, requesteeId).Scan(&ret) // .Scan(convId)
+	err = db.QueryRow(`SELECT id FROM FriendRequests WHERE senderId = ? AND reciverId = ?;`, requesterId, requesteeId).Scan(&ret)
 
 	if err != sql.ErrNoRows {
 		httpError(&w, 500, "firend request already exists")
@@ -248,7 +559,7 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec(`INSERT INTO FriendRequests (senderId, reciverId) VALUES (?, ?);`, requesterId, requesteeId) // .Scan(convId)
+	_, err = db.Exec(`INSERT INTO FriendRequests (senderId, reciverId) VALUES (?, ?);`, requesterId, requesteeId)
 
 	if err != nil && err != sql.ErrNoRows {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -276,6 +587,7 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
+		return
 	}
 
 	type RespData struct {
@@ -353,6 +665,7 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
+		return
 	}
 
 	db, err := sql.Open("mysql", databaseString)
@@ -426,11 +739,11 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 // messages {{{
 func sendMessage(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: accept friend request")
+	fmt.Println("endpoint hit: send messages")
 
 	type Res struct {
 		S    int    `json:"s"`
-		Id   string `json:"id"`
+		Id   string `json:"convid"`
 		Text string `json:"text"`
 	}
 
@@ -442,13 +755,14 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
+		return
 	}
 
-	reqId := resp.S
+	user := resp.S
 
-	// conType := resp.Id[len(resp.Id)-1:]
+	conType := string(resp.Id[0])
 
-	id, _ := strconv.Atoi(resp.Id[:len(resp.Id)-1])
+	id, _ := strconv.Atoi(resp.Id[len(resp.Id)-1:])
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -461,19 +775,22 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 
 	var sender int
 
-	// table := ""
+	table := ""
 
-	// if conType == "P" {
-	// 	table = "PrivateMessages"
-	// } else if conType == "G" {
-	// 	table = "GroupMembers"
-	// }
+	if conType == "P" {
+		table = "PrivateMessages"
+	} else if conType == "G" {
+		table = "GroupMembers"
+	} else {
+		httpError(&w, 300, "coversation type does not exist")
+		return
+	}
 
-	err = db.QueryRow(`
+	err = db.QueryRow(fmt.Sprintf(`
 		SELECT user
-		FROM PrivateMessages
-		WHERE id = ? AND user = ?;
-	`, id, reqId).Scan(&sender)
+		FROM %s
+		WHERE id = ? AND user = ?
+	`, table), id, user).Scan(&sender)
 
 	if err == sql.ErrNoRows {
 		httpError(&w, 300, "conversation does not exists")
@@ -486,8 +803,8 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.Exec(`
-		INSERT INTO Messages ( conv, content ) VALUES ( ?, ? ) ;
-	`, resp.Id, resp.Text)
+		INSERT INTO Messages ( conv, senderId, content ) VALUES ( ?, ?, ? ) ;
+	`, resp.Id, user, resp.Text)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -495,6 +812,105 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpSuccess(&w, 200, "message sent succesfully")
+}
+
+//? implementare paginazione?
+func getMessages(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: get messages")
+
+	type Res struct {
+		S  int    `json:"s"`
+		Id string `json:"convid"`
+	}
+
+	var resp Res
+
+	err := httpGetBody(r, &resp)
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+		return
+	}
+
+	user := resp.S
+
+	convid := resp.Id
+
+	conType := string(resp.Id[0])
+
+	id, _ := strconv.Atoi(resp.Id[len(resp.Id)-1:])
+
+	db, err := sql.Open("mysql", databaseString)
+
+	defer db.Close()
+
+	if err != nil {
+		httpError(&w, 500, err)
+		return
+	}
+
+	var sender int
+
+	table := ""
+
+	if conType == "P" {
+		table = "PrivateMessages"
+	} else if conType == "G" {
+		table = "GroupMembers"
+	} else {
+		httpError(&w, 300, "coversation type does not exist")
+		return
+	}
+
+	err = db.QueryRow(fmt.Sprintf(`
+		SELECT user
+		FROM %s
+		WHERE id = ? AND user = ?
+	`, table), id, user).Scan(&sender)
+
+	if err == sql.ErrNoRows {
+		httpError(&w, 300, "conversation does not exists")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	rows, err := db.Query(`
+		SELECT id, senderId, content
+		FROM Messages
+		WHERE conv = ?
+	`, convid)
+
+	if err != nil {
+		httpError(&w, 500, "error doing query: "+err.Error())
+		return
+	}
+
+	type Message struct {
+		Id   int    `db:"id"`
+		User int    `db:"senderId"`
+		Text string `db:"content"`
+	}
+
+	var messages []Message
+
+	for rows.Next() {
+		var mess Message
+
+		if err := rows.Scan(&mess.Id, &mess.User, &mess.Text); err != nil {
+			httpError(&w, 500, "error getting query data: "+err.Error())
+			return
+		}
+
+		messages = append(messages, mess)
+	}
+
+	retStr, _ := json.Marshal(messages)
+
+	httpSuccessf(&w, 200, `"data":%v`, string(retStr))
 }
 
 // }}}

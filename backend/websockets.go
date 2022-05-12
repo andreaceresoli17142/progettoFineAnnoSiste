@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 
@@ -14,8 +15,17 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+type UserSock struct {
+	Id     int
+	Socket *websocket.Conn
+}
+
+var socketsAndUsers []UserSock
+
 func initSocket(w http.ResponseWriter, r *http.Request) {
 	Debugln("endpoint hit: websocket")
+
+	var userData UserSock
 
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
@@ -25,20 +35,35 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for {
+	userData.Socket = c
 
-		messageType, message, err := c.ReadMessage()
-		if err != nil {
-			httpError(&w, 500, "error reading message")
-			return
-		}
+	// expecting handshake to know what is the user id
 
-		Debugln(string(message[:]))
+	_, message, err := c.ReadMessage()
 
-		if err = c.WriteMessage(messageType, message); err != nil {
-			httpError(&w, 500, "error sending message")
-			return
-		}
+	if err != nil {
+		httpError(&w, 500, "error reading message")
+		return
 	}
 
+	Debugln(string(message[:]))
+
+	userData.Id, err = strconv.Atoi(string(message[:]))
+	if err != nil {
+		httpError(&w, 300, "id is not an int")
+		return
+	}
+
+	socketsAndUsers = append(socketsAndUsers, userData)
+}
+
+func socketSendNotification(user int) error {
+	for _, userSock := range socketsAndUsers {
+		if userSock.Id == user {
+			if err := userSock.Socket.WriteMessage(websocket.BinaryMessage, []byte{0}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
