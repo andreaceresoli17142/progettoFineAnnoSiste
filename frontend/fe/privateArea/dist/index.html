@@ -9,26 +9,52 @@
 <body>
   <script>
 
-    const S = 1
+    let socket
+
+    let currconv
+    let S = parseInt(prompt("who are you"))
+
     window.onload = function() {
-      // var myHeaders = new Headers();
-      // myHeaders.append("Content-Type", "application/json");
 
-      // var raw = JSON.stringify({
-      //   "userid": S
-      // });
+      socket = new WebSocket("ws://localhost:8080/websock");
 
-      // var requestOptions = {
-      //   method: 'POST',
-      //   headers: myHeaders,
-      //   body: raw,
-      //   redirect: 'follow'
-      // };
+      socket.onopen = function(e) {
+        console.log("[open] Connection established");
+        // let id = prompt("what's your id? ")
+        console.log("performing handshake");
+        socket.send(S);
+      };
 
-      // fetch("http://localhost:8080/getconv", requestOptions)
-      //   .then(response => response.text())
-      //   .then(result => populateConv(result))
-      //   .catch(error => console.log('error', error));
+      socket.onmessage = function(event) {
+        console.log(`new data from server`);
+
+        // console.log(currconv)
+
+        // console.log(event.data)
+
+        let reqData = JSON.parse(event.data)
+        // console.log(reqData)
+
+        if ( reqData.ConvId == currconv ) {
+          drawMessage(reqData)
+        } else {
+
+        }
+      };
+
+      socket.onclose = function(event) {
+      if (event.wasClean) {
+        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+      } else {
+        // e.g. server process killed or network down
+        // event.code is usually 1006 in this case
+        console.log('[close] Connection died');
+      }
+      };
+
+      socket.onerror = function(error) {
+        console.log(`[error] ${error.message}`);
+      };
 
       var requestOptions = {
         method: 'GET',
@@ -45,6 +71,11 @@
 
       let dataArr = JSON.parse(reqdata)
 
+      if ( dataArr.code != 200 ) {
+        console.log(dataArr.msg)
+        return
+      }
+
       dataArr.data.forEach(userData => {
 
         let pfp = "blank"
@@ -56,29 +87,21 @@
         document.getElementById("userbar").innerHTML += `<li class="clearfix" onclick="loadMessages('${userData.convId.toUpperCase()}')" >
             <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
             <div class="about">
-              <div class="name">${userData.name}</div>
+              <div class="name" id="name-${userData.convId}"></div>
               <div class="status">
-                <i class="fa fa-circle online"></i> ${userData.description}
+                <i class="fa fa-circle online"></i> <div id="desc-${userData.convId}"></div>
               </div>
             </div>
           </li>
         `
+
+        document.getElementById("name-"+userData.convId).innerText = userData.name
+        document.getElementById("desc-"+userData.convId).innerText = userData.description
       });
 
     }
 
     function loadMessages (convId) {
-      var requestOptions = {
-        method: 'GET',
-        redirect: 'follow'
-      };
-
-      fetch(`http://localhost:8080/msg/read?S=${S}&convid=${convId}`, requestOptions)
-        .then(response => response.text())
-        .then(result => populateMess(result))
-        .catch(error => console.log('error', error));
-
-      console.log("1")
 
       var requestOptions = {
         method: 'GET',
@@ -87,39 +110,77 @@
 
       fetch(`http://localhost:8080/getsingleconv?S=${S}&convid=${convId}`, requestOptions)
         .then(response => response.text())
-        .then(result => drawChatHeader(result, convId))
+        .then(result => drawChat(result, convId))
+        .catch(error => console.log('error', error));
+
+      fetch(`http://localhost:8080/msg/read?S=${S}&convid=${convId}`, requestOptions)
+        .then(response => response.text())
+        .then(result => populateMess(result))
         .catch(error => console.log('error', error));
     }
 
-    function drawChatHeader(result, convId){
-          console.log("sdaff")
-          let data = JSON.parse(result).data
+    function drawChat(result, convId){
 
-          document.getElementById("chatheader").innerHTML = ""
+      currconv = convId
 
-          let pfp = "blank"
+      document.getElementById("mainchatdiv"). innerHTML = `
+        <div id="chatheader" class="chat-header clearfix">
+          </div> <!-- end chat-header -->
 
-          if ( data.pfp ) {
-            pfp = convId
-          }
+          <div class="chat-history">
+            <ul id="chatdiv">
+            </ul>
+          </div> <!-- end chat-history -->
 
-          document.getElementById("chatheader").innerHTML += `
-          <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+          <div class="chat-message clearfix">
+            <textarea name="message-to-send" id="message-to-send" placeholder ="Type your message" rows="3"></textarea>
 
-          <div class="chat-about">
-            <div class="chat-with">${data.name}</div>
-            <div class="chat-num-messages">${data.description}</div>
-          </div>
-          <i class="fa fa-star"></i>`
+            <i class="fa fa-file-o"></i> &nbsp;&nbsp;&nbsp;
+            <i class="fa fa-file-image-o"></i>
 
-        }
+            <button onclick="sendMessage('${convId.toUpperCase()}')" >Send <svg class="svg-icon" viewBox="0 0 20 20">
+							<path d="M17.218,2.268L2.477,8.388C2.13,8.535,2.164,9.05,2.542,9.134L9.33,10.67l1.535,6.787c0.083,0.377,0.602,0.415,0.745,0.065l6.123-14.74C17.866,2.46,17.539,2.134,17.218,2.268 M3.92,8.641l11.772-4.89L9.535,9.909L3.92,8.641z M11.358,16.078l-1.268-5.613l6.157-6.157L11.358,16.078z"></path>
+						</svg></button>
+
+          </div> <!-- end chat-message -->`
+
+      let dataJson = JSON.parse(result)
+      let data = dataJson.data
+
+      if ( dataJson.code != 200 ) {
+        console.log(dataJson.msg)
+        return
+      }
+
+      document.getElementById("chatheader").innerHTML = ""
+
+      let pfp = "blank"
+
+      if ( data.pfp ) {
+        pfp = convId
+      }
+
+      document.getElementById("chatheader").innerHTML += `
+      <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+
+      <div class="chat-about">
+        <div class="chat-with">${data.name}</div>
+        <div class="chat-num-messages">${data.description}</div>
+      </div>
+      <i class="fa fa-star"></i>`
+
+    }
 
     function populateMess(reqdata) {
 
-      document.getElementById("chatdiv").innerHTML = ""
-
+      // document.getElementById("chatdiv").innerHTML = ""
 
       let dataArr = JSON.parse(reqdata)
+
+      if ( dataArr.code != 200 ) {
+        console.log(dataArr.msg)
+        return
+      }
 
       if ( dataArr.data == null ){
         return
@@ -127,34 +188,78 @@
 
       dataArr.data.forEach(messData => {
 
-        if ( messData.UserId == S ) {
+        drawMessage(messData)
 
-          document.getElementById("chatdiv").innerHTML += `
-            <li class="clearfix">
-              <div class="message-data align-right">
-                <span class="message-data-time" >${messData.Time}</span> &nbsp; &nbsp;
-                <span class="message-data-name" >${messData.Username}</span> <i class="fa fa-circle me"></i>
-
-              </div>
-              <div class="message other-message float-right">
-                ${messData.Text}
-              </div>
-            </li>`
-            return
-        }
-
-        document.getElementById("chatdiv").innerHTML += `
-        <li>
-          <div class="message-data">
-            <span class="message-data-name"><i class="fa fa-circle online"></i> ${messData.Username}</span>
-            <span class="message-data-time">${messData.Time}</span>
-          </div>
-          <div class="message my-message">
-            ${messData.Text}
-          </div>
-        </li>`
       });
 
+    }
+
+    function drawMessage (messData) {
+      console.log(messData)
+      var msg = ""
+
+      if ( messData.UserId == S ) {
+        msgStr = `
+          <li class="clearfix">
+            <div class="message-data align-right">
+              <span class="message-data-time" id="time-${messData.Id}" ></span> &nbsp; &nbsp;
+              <span class="message-data-name" id="name-${messData.Id}"></span> <i class="fa fa-circle me"></i>
+
+            </div>
+            <div class="message other-message float-right" id="mess-${messData.Id}">
+
+            </div>
+          </li>`
+      } else {
+        msgStr = `
+        <li>
+          <div class="message-data">
+            <span class="message-data-name"><i class="fa fa-circle online"></i> <div id="name-${messData.Id}"> ${messData.Username} </div></span>
+            <span class="message-data-time" id="time-${messData.Id}"></span>
+          </div>
+          <div class="message my-message" id="mess-${messData.Id}">
+
+          </div>
+        </li>`
+      }
+
+      document.getElementById("chatdiv").innerHTML += msgStr
+
+      document.getElementById(`time-${messData.Id}`).innerText = messData.Time
+      document.getElementById(`name-${messData.Id}`).innerText = messData.Username
+      document.getElementById(`mess-${messData.Id}`).innerText = messData.Text
+    }
+
+    function sendMessage(convId) {
+
+      var msg = document.getElementById("message-to-send").value
+
+      document.getElementById("message-to-send").value = ""
+
+      if ( !msg.replace(/\s/g, "") ) {
+        return
+      }
+
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+
+      var raw = JSON.stringify({
+        "s": S,
+        "convid": convId,
+        "text": msg
+      });
+
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: raw,
+        redirect: 'follow'
+      };
+
+      fetch("http://localhost:8080/msg/send", requestOptions)
+        .then(response => response.text())
+        .then(result => console.log(result) )
+        .catch(error => console.log('error', error));
     }
   </script>
 
@@ -169,58 +274,15 @@
       </ul>
     </div>
 
-    <div class="chat">
-      <div id="chatheader" class="chat-header clearfix">
-        
-      </div> <!-- end chat-header -->
+    <div class="chat" id="mainchatdiv">
 
-      <div class="chat-history">
-        <ul id="chatdiv">
-
-        </ul>
-
-      </div> <!-- end chat-history -->
-
-      <div class="chat-message clearfix">
-        <textarea name="message-to-send" id="message-to-send" placeholder ="Type your message" rows="3"></textarea>
-
-        <i class="fa fa-file-o"></i> &nbsp;&nbsp;&nbsp;
-        <i class="fa fa-file-image-o"></i>
-
-        <button>Send</button>
-
-      </div> <!-- end chat-message -->
 
     </div> <!-- end chat -->
 
   </div> <!-- end container -->
 
-<script id="message-template" type="text/x-handlebars-template">
-  <li class="clearfix">
-    <div class="message-data align-right">
-      <span class="message-data-time" >{{time}}, Today</span> &nbsp; &nbsp;
-      <span class="message-data-name" >Olia</span> <i class="fa fa-circle me"></i>
-    </div>
-    <div class="message other-message float-right">
-      {{messageOutput}}
-    </div>
-  </li>
-</script>
-
-<script id="message-response-template" type="text/x-handlebars-template">
-  <li>
-    <div class="message-data">
-      <span class="message-data-name"><i class="fa fa-circle online"></i> Vincent</span>
-      <span class="message-data-time">{{time}}, Today</span>
-    </div>
-    <div class="message my-message">
-      {{response}}
-    </div>
-  </li>
-</script>
 <!-- partial -->
   <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
-<script src='//cdnjs.cloudflare.com/ajax/libs/handlebars.js/3.0.0/handlebars.min.js'></script>
 <script src='//cdnjs.cloudflare.com/ajax/libs/list.js/1.1.1/list.min.js'></script><script  src="./script.js"></script>
 
 </body>
