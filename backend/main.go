@@ -46,13 +46,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func testData(w http.ResponseWriter, r *http.Request) {
-
-	err := socketSendNotification(1)
-
-	if err != nil {
-		Debugln("error sending message notification: " + err.Error())
-	}
-
+	socketSendNotification(1, `{"ConvId":"P1","Id": 3, "UserId": 1, "Username": "pima", "Text": "you have been hax", "Time": "2022-05-13 20:36:38"}`)
 }
 
 // route endpoints {{{

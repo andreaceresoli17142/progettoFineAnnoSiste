@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -15,17 +16,12 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-type UserSock struct {
-	Id     int
-	Socket *websocket.Conn
-}
-
-var socketsAndUsers []UserSock
+var socketsAndUsers = make(map[int][]*websocket.Conn)
 
 func initSocket(w http.ResponseWriter, r *http.Request) {
-	Debugln("endpoint hit: websocket")
+	fmt.Println("endpoint hit: websocket")
 
-	var userData UserSock
+	// var userData UserSock
 
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
@@ -35,7 +31,7 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userData.Socket = c
+	// userData.Socket = c
 
 	// expecting handshake to know what is the user id
 
@@ -48,22 +44,41 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 
 	Debugln(string(message[:]))
 
-	userData.Id, err = strconv.Atoi(string(message[:]))
+	userId, err := strconv.Atoi(string(message[:]))
 	if err != nil {
 		httpError(&w, 300, "id is not an int")
 		return
 	}
 
-	socketsAndUsers = append(socketsAndUsers, userData)
+	// Debugln(userId)
+
+	// socketsAndUsers = append(socketsAndUsers, userData)
+	// 	tmparr := append(socketsAndUsers[userId], c)
+
+	if socketsAndUsers[userId] == nil {
+		socketsAndUsers[userId] = []*websocket.Conn{c}
+	} else {
+		socketsAndUsers[userId] = append(socketsAndUsers[userId], c)
+	}
+
+	// socketsAndUsers[userId] = "ciao"
+
 }
 
-func socketSendNotification(user int) error {
-	for _, userSock := range socketsAndUsers {
-		if userSock.Id == user {
-			if err := userSock.Socket.WriteMessage(websocket.BinaryMessage, []byte{0}); err != nil {
-				return err
-			}
+func socketSendNotification(user int, str string) {
+
+	sockArr, found := socketsAndUsers[user]
+
+	if !found {
+		return
+	}
+
+	for _, singleSocket := range sockArr {
+		err := singleSocket.WriteMessage(websocket.TextMessage, []byte(str))
+		if err != nil {
+			Debugln("error in web socket: " + err.Error())
 		}
 	}
-	return nil
+
+	return
 }

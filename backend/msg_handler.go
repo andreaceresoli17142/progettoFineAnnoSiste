@@ -138,7 +138,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSingleConversation(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: get conversations")
+	fmt.Println("endpoint hit: get single conversations")
 
 	type Convs struct {
 		Id          string `json:"convId"db:"id"`
@@ -197,7 +197,7 @@ func getSingleConversation(w http.ResponseWriter, r *http.Request) {
 				FROM GroupMembers
 				WHERE id = ? AND user = ?
 			)
-		`, userId, convId)
+		`, convId, userId)
 	} else {
 		httpError(&w, 300, "coversation type does not exist")
 		return
@@ -854,8 +854,6 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 		Text string `json:"text"`
 	}
 
-	// b, err := ioutil.ReadAll(r.Body)
-
 	var resp Res
 
 	err := httpGetBody(r, &resp)
@@ -909,13 +907,53 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec(`
+	ret, err := db.Exec(`
 		INSERT INTO Messages ( conv, senderId, content ) VALUES ( ?, ?, ? ) ;
 	`, resp.Id, user, resp.Text)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
 		return
+	}
+
+	type Message struct {
+		ConvId   string
+		Id       int    `db:"id"`
+		UserId   int    `db:"senderId"`
+		Username string `db:"username"`
+		Text     string `db:"content"`
+		Time     string `db:"time"`
+	}
+
+	var mess Message
+
+	mess.ConvId = resp.Id
+
+	messId, _ := ret.LastInsertId()
+
+	err = db.QueryRow(`
+		SELECT m.id AS id, m.senderId AS senderId, u.username AS username, m.content AS content, m.time AS time
+		FROM Messages m INNER JOIN Users u ON m.senderId = u.id
+		WHERE m.id = ?
+	`, messId).Scan(&mess.Id, &mess.UserId, &mess.Username, &mess.Text, &mess.Time)
+
+	if err != nil {
+		httpError(&w, 500, "error doing query: "+err.Error())
+		return
+	}
+
+	retStr, _ := json.Marshal(mess)
+
+	rows, _ := db.Query(fmt.Sprintf(`
+		SELECT user
+		FROM %s
+		WHERE id = ?
+	`, table), id)
+
+	for rows.Next() {
+		var Uid int
+		rows.Scan(&Uid)
+		socketSendNotification(Uid, string(retStr))
 	}
 
 	httpSuccess(&w, 200, "message sent succesfully")
