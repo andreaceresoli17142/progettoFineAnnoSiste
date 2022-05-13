@@ -8,22 +8,34 @@
 </head>
 <body>
   <script>
-    window.onload = function() {
-      var myHeaders = new Headers();
-      myHeaders.append("Content-Type", "application/json");
 
-      var raw = JSON.stringify({
-        "userid": 1
-      });
+    const S = 1
+    window.onload = function() {
+      // var myHeaders = new Headers();
+      // myHeaders.append("Content-Type", "application/json");
+
+      // var raw = JSON.stringify({
+      //   "userid": S
+      // });
+
+      // var requestOptions = {
+      //   method: 'POST',
+      //   headers: myHeaders,
+      //   body: raw,
+      //   redirect: 'follow'
+      // };
+
+      // fetch("http://localhost:8080/getconv", requestOptions)
+      //   .then(response => response.text())
+      //   .then(result => populateConv(result))
+      //   .catch(error => console.log('error', error));
 
       var requestOptions = {
-        method: 'POST',
-        headers: myHeaders,
-        body: raw,
+        method: 'GET',
         redirect: 'follow'
       };
 
-      fetch("http://localhost:8080/getconv", requestOptions)
+      fetch(`http://localhost:8080/getconv?S=${S}`, requestOptions)
         .then(response => response.text())
         .then(result => populateConv(result))
         .catch(error => console.log('error', error));
@@ -33,15 +45,16 @@
 
       let dataArr = JSON.parse(reqdata)
 
-      // if ( dataArr.code != 200 ){
-      //   return
-      // }
-
       dataArr.data.forEach(userData => {
 
-        console.log(userData)
-        document.getElementById("userbar").innerHTML += `<li class="clearfix">
-            <img class="pfp" src="http://localhost/assets/blank.png" alt="avatar" />
+        let pfp = "blank"
+
+        if ( userData.pfp ) {
+          pfp = userData.convId
+        }
+
+        document.getElementById("userbar").innerHTML += `<li class="clearfix" onclick="loadMessages('${userData.convId.toUpperCase()}')" >
+            <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
             <div class="about">
               <div class="name">${userData.name}</div>
               <div class="status">
@@ -50,6 +63,96 @@
             </div>
           </li>
         `
+      });
+
+    }
+
+    function loadMessages (convId) {
+      var requestOptions = {
+        method: 'GET',
+        redirect: 'follow'
+      };
+
+      fetch(`http://localhost:8080/msg/read?S=${S}&convid=${convId}`, requestOptions)
+        .then(response => response.text())
+        .then(result => populateMess(result))
+        .catch(error => console.log('error', error));
+
+      console.log("1")
+
+      var requestOptions = {
+        method: 'GET',
+        redirect: 'follow'
+      };
+
+      fetch(`http://localhost:8080/getsingleconv?S=${S}&convid=${convId}`, requestOptions)
+        .then(response => response.text())
+        .then(result => drawChatHeader(result, convId))
+        .catch(error => console.log('error', error));
+    }
+
+    function drawChatHeader(result, convId){
+          console.log("sdaff")
+          let data = JSON.parse(result).data
+
+          document.getElementById("chatheader").innerHTML = ""
+
+          let pfp = "blank"
+
+          if ( data.pfp ) {
+            pfp = convId
+          }
+
+          document.getElementById("chatheader").innerHTML += `
+          <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+
+          <div class="chat-about">
+            <div class="chat-with">${data.name}</div>
+            <div class="chat-num-messages">${data.description}</div>
+          </div>
+          <i class="fa fa-star"></i>`
+
+        }
+
+    function populateMess(reqdata) {
+
+      document.getElementById("chatdiv").innerHTML = ""
+
+
+      let dataArr = JSON.parse(reqdata)
+
+      if ( dataArr.data == null ){
+        return
+      }
+
+      dataArr.data.forEach(messData => {
+
+        if ( messData.UserId == S ) {
+
+          document.getElementById("chatdiv").innerHTML += `
+            <li class="clearfix">
+              <div class="message-data align-right">
+                <span class="message-data-time" >${messData.Time}</span> &nbsp; &nbsp;
+                <span class="message-data-name" >${messData.Username}</span> <i class="fa fa-circle me"></i>
+
+              </div>
+              <div class="message other-message float-right">
+                ${messData.Text}
+              </div>
+            </li>`
+            return
+        }
+
+        document.getElementById("chatdiv").innerHTML += `
+        <li>
+          <div class="message-data">
+            <span class="message-data-name"><i class="fa fa-circle online"></i> ${messData.Username}</span>
+            <span class="message-data-time">${messData.Time}</span>
+          </div>
+          <div class="message my-message">
+            ${messData.Text}
+          </div>
+        </li>`
       });
 
     }
@@ -65,88 +168,31 @@
       <ul id="userbar" class="list">
       </ul>
     </div>
-  
+
     <div class="chat">
-      <div class="chat-header clearfix">
-        <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/195612/chat_avatar_01_green.jpg" alt="avatar" />
+      <div id="chatheader" class="chat-header clearfix">
         
-        <div class="chat-about">
-          <div class="chat-with">Chat with Vincent Porter</div>
-          <div class="chat-num-messages">already 1 902 messages</div>
-        </div>
-        <i class="fa fa-star"></i>
       </div> <!-- end chat-header -->
-    
+
       <div class="chat-history">
-        <ul>
-          <li class="clearfix">
-            <div class="message-data align-right">
-              <span class="message-data-time" >10:10 AM, Today</span> &nbsp; &nbsp;
-              <span class="message-data-name" >Olia</span> <i class="fa fa-circle me"></i>
-              
-            </div>
-            <div class="message other-message float-right">
-              Hi Vincent, how are you? How is the project coming along?
-            </div>
-          </li>
-          
-          <li>
-            <div class="message-data">
-              <span class="message-data-name"><i class="fa fa-circle online"></i> Vincent</span>
-              <span class="message-data-time">10:12 AM, Today</span>
-            </div>
-            <div class="message my-message">
-              Are we meeting today? Project has been already finished and I have results to show you.
-            </div>
-          </li>
-          
-          <li class="clearfix">
-            <div class="message-data align-right">
-              <span class="message-data-time" >10:14 AM, Today</span> &nbsp; &nbsp;
-              <span class="message-data-name" >Olia</span> <i class="fa fa-circle me"></i>
-              
-            </div>
-            <div class="message other-message float-right">
-              Well I am not sure. The rest of the team is not here yet. Maybe in an hour or so? Have you faced any problems at the last phase of the project?
-            </div>
-          </li>
-          
-          <li>
-            <div class="message-data">
-              <span class="message-data-name"><i class="fa fa-circle online"></i> Vincent</span>
-              <span class="message-data-time">10:20 AM, Today</span>
-            </div>
-            <div class="message my-message">
-              Actually everything was fine. I'm very excited to show this to our team.
-            </div>
-          </li>
-          
-          <li>
-            <div class="message-data">
-              <span class="message-data-name"><i class="fa fa-circle online"></i> Vincent</span>
-              <span class="message-data-time">10:31 AM, Today</span>
-            </div>
-            <i class="fa fa-circle online"></i>
-            <i class="fa fa-circle online" style="color: #AED2A6"></i>
-            <i class="fa fa-circle online" style="color:#DAE9DA"></i>
-          </li>
-          
+        <ul id="chatdiv">
+
         </ul>
-        
+
       </div> <!-- end chat-history -->
-      
+
       <div class="chat-message clearfix">
         <textarea name="message-to-send" id="message-to-send" placeholder ="Type your message" rows="3"></textarea>
-                
+
         <i class="fa fa-file-o"></i> &nbsp;&nbsp;&nbsp;
         <i class="fa fa-file-image-o"></i>
-        
+
         <button>Send</button>
 
       </div> <!-- end chat-message -->
-      
+
     </div> <!-- end chat -->
-    
+
   </div> <!-- end container -->
 
 <script id="message-template" type="text/x-handlebars-template">

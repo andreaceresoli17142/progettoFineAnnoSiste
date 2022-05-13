@@ -10,6 +10,7 @@ CREATE TABLE Users (
     email VARCHAR(100) NOT NULL,
     date_of_join DATE NOT NULL,
     state VARCHAR(200) NOT NULL DEFAULT "hello im not using whatsapp!",
+    profilePic BOOLEAN NOT NULL DEFAULT 0,
     salt INT NOT NULL,
     pHash CHAR(64) NOT NULL,
 	last_login TIMESTAMP NOT NULL,
@@ -38,6 +39,7 @@ CREATE TABLE GroupNames (
     id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(40) NOT NULL,
     description VARCHAR(250),
+    profilePic BOOLEAN NOT NULL DEFAULT 0,
     PRIMARY KEY ( id )
 );
 
@@ -47,6 +49,7 @@ CREATE TABLE Messages (
     conv TEXT NOT NULL, -- specifies the group or pm where the message was written (P for pm's, G for groups)
     content VARCHAR(300) NOT NULL,
     attachment VARCHAR(150),
+    time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP(),
     PRIMARY KEY ( id )
 );
 
@@ -99,9 +102,9 @@ INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_logi
 INSERT INTO PrivateMessages ( id, user ) VALUES ( 1, 1 );
 INSERT INTO PrivateMessages ( id, user ) VALUES ( 1, 2 );
 
-INSERT INTO GroupNames ( name, description ) VALUES ( "gruppo tennici", "taurone sei un grande" );
+INSERT INTO GroupNames ( name, description, profilePic ) VALUES ( "gruppo tennici", "taurone sei un grande", 1 );
 INSERT INTO GroupNames ( name, description ) VALUES ( "gruppo tennici (senza taurone)", "tutti i miei amici odiano taurone" );
 
 INSERT INTO GroupMembers ( id, user ) VALUES ( 1, 1 );
--- INSERT INTO GroupMembers ( id, user ) VALUES ( 1, 2 );
+INSERT INTO GroupMembers ( id, user ) VALUES ( 1, 2 );
 INSERT INTO GroupMembers ( id, user ) VALUES ( 2, 1 );
