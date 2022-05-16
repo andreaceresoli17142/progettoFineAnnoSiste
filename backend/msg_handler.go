@@ -572,11 +572,19 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
+	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.UserId).Scan(&i)
 
-	if i <= 1 {
-		httpError(&w, 300, "there has to be at least one administator in the group")
-		return
+	if i == 1 {
+		err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
+
+		if i <= 1 {
+			httpError(&w, 300, "there has to be at least one administator in the group")
+			return
+		}
+		if err != nil {
+			httpError(&w, 500, "backend error: "+err.Error())
+			return
+		}
 	}
 
 	if err != nil {
@@ -592,6 +600,111 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpSuccess(&w, 200, "success")
+}
+
+func getGroupData(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: admin remove user")
+	v := r.URL.Query()
+	// b, err := ioutil.ReadAll(r.Body)
+
+	type ReqData struct {
+		Sender  int `json:"s"`
+		GroupId int `json:"groupid"`
+	}
+
+	type User struct {
+		Id       int    `db:"id"`
+		Username string `db:"username"`
+		Pfp      bool   `db:"pfp"`
+		IsAdmin  bool   `db:"isAdmin"`
+	}
+
+	type GroupData struct {
+		Id    int    `db:"id"`
+		Name  string `db:"name"`
+		Desc  string `db:"description"`
+		Pfp   bool   `db:"profilePic"`
+		Users []User
+	}
+
+	var resp ReqData
+
+	var ret GroupData
+
+	resp.Sender, _ = strconv.Atoi(v.Get("S"))
+	resp.GroupId, _ = strconv.Atoi(v.Get("groupid"))
+
+	if resp.Sender == 0 || resp.GroupId == 0 {
+		httpError(&w, 300, "missing parameters")
+		return
+	} // err = json.Unmarshal(b, &resp)
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var i int
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
+
+	if err != nil {
+		if err != nil {
+			httpError(&w, 300, "you are not in the selected group")
+			return
+		}
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`
+		SELECT id, name, description, profilePic
+		FROM GroupNames
+		WHERE id = ?
+	`, resp.GroupId).Scan(&ret.Id, &ret.Name, &ret.Desc, &ret.Pfp)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			httpError(&w, 300, "group does not exist")
+			return
+		}
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	rows, err := db.Query(`
+		SELECT u.id AS id, u.username AS username, u.profilePic AS pfp, g.isAdmin AS isAdmin
+		FROM Users u INNER JOIN GroupMembers g ON u.id = g.user
+		WHERE g.id = ?
+	`, resp.GroupId)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	var tmp []User
+
+	for rows.Next() {
+		var gu User
+		err = rows.Scan(&gu.Id, &gu.Username, &gu.Pfp, &gu.IsAdmin)
+
+		if err != nil {
+			httpError(&w, 500, "backend error: "+err.Error())
+			return
+		}
+		tmp = append(tmp, gu)
+	}
+
+	ret.Users = tmp
+
+	a, _ := json.Marshal(ret)
+
+	httpSuccessf(&w, 200, `"data":%v`, string(a))
 }
 
 // }}}

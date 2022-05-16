@@ -9,6 +9,9 @@
 <body>
   <script>
 
+    //TODO: change group and user name, description and picture
+    //TODO: create group
+
     let socket
 
     let currconv
@@ -56,11 +59,11 @@
         console.log(`[error] ${error.message}`);
       };
 
-      getConversation()
+      drawConversation()
 
     }
 
-    function getConversation() {
+    function drawConversation() {
       var requestOptions = {
         method: 'GET',
         redirect: 'follow'
@@ -68,41 +71,37 @@
 
       fetch(`http://localhost:8080/getconv?S=${S}`, requestOptions)
         .then(response => response.text())
-        .then(result => populateConv(result))
-        .catch(error => console.log('error', error));
-    }
+        .then(result => {
 
+          let dataArr = JSON.parse(result)
 
-    function populateConv (reqdata) {
+          if ( dataArr.code != 200 ) {
+            console.log(dataArr.msg)
+            return
+          }
 
-      let dataArr = JSON.parse(reqdata)
+          dataArr.data.forEach(userData => {
 
-      if ( dataArr.code != 200 ) {
-        console.log(dataArr.msg)
-        return
-      }
+            let pfp = "blank"
 
-      dataArr.data.forEach(userData => {
+            if ( userData.pfp ) {
+              pfp = userData.convId
+            }
 
-        let pfp = "blank"
+            document.getElementById("userbar").innerHTML += `<li class="clearfix" onclick="loadMessages('${userData.convId.toUpperCase()}')" >
+                <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+                <div class="about">
+                  <div class="name text-truncate" style="max-width: 132x;" id="name-${userData.convId}"></div>
+                  <div class="status text-truncate" style="max-width: 132px;" id="desc-${userData.convId}"></div>
+                </div>
+              </li>
+            `
 
-        if ( userData.pfp ) {
-          pfp = userData.convId
-        }
+            document.getElementById("name-"+userData.convId).innerText = userData.name
+            document.getElementById("desc-"+userData.convId).innerText = userData.description
+          });
 
-        document.getElementById("userbar").innerHTML += `<li class="clearfix" onclick="loadMessages('${userData.convId.toUpperCase()}')" >
-            <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
-            <div class="about">
-              <div class="name text-truncate" style="max-width: 132x;" id="name-${userData.convId}"></div>
-              <div class="status text-truncate" style="max-width: 132px;" id="desc-${userData.convId}"></div>
-            </div>
-          </li>
-        `
-
-        document.getElementById("name-"+userData.convId).innerText = userData.name
-        document.getElementById("desc-"+userData.convId).innerText = userData.description
-      });
-
+          }).catch(error => console.log('error', error));
     }
 
     function loadMessages (convId) {
@@ -171,8 +170,15 @@
         <div class="chat-with">${data.name}</div>
         <div class="chat-num-messages">${data.description}</div>
       </div>
-      <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#friendRequestsModal" onclick=""><i class="fa fa-users" aria-hidden="true"></i></button>
       `
+
+      if (convId[0] == "G") {
+        document.getElementById("chatheader").innerHTML += `
+          <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#groupRequestsModal" onclick="drawGroupModal(${convId.substr(1)})">
+            <i class="fa fa-users" aria-hidden="true"></i>
+          </button>
+        `
+      }
 
     }
 
@@ -293,8 +299,8 @@
             // console.log(element)
             document.getElementById("freqs").innerHTML += `<div id="freq-${element.id}" class="col-9"> ${element.usr}
               <div class="btn-group col-3" role="group">
-                <button type="button" onclick="accFriendRequests(${element.id}, true)" class="btn btn-success">accept</button>
-                <button type="button" onclick="accFriendRequests(${element.id}, false)" class="btn btn-danger">reject</button>
+                <button type="button" onclick="accFriendRequests(${element.id}, true)" class="btn btn-outline-success">accept</button>
+                <button type="button" onclick="accFriendRequests(${element.id}, false)" class="btn btn-outline-danger">reject</button>
               </div>
               </div>`
           });
@@ -352,11 +358,189 @@
 
           if (val) {
             document.getElementById("userbar").innerHTML = ""
-            getConversation()
+            drawConversation()
           }
         })
         .catch(error => console.log('error', error));
     }
+
+    function drawGroupModal(gid) {
+      var requestOptions = {
+        method: 'GET',
+        redirect: 'follow'
+      };
+
+      fetch(`http://localhost:8080/group/getdata?S=${S}&groupid=${gid}`, requestOptions)
+        .then(response => response.text())
+        .then(result => {
+          let unmarsh = JSON.parse(result)
+          let groupData = unmarsh.data
+          // console.log(groupData)
+          let pfp = "blank"
+
+          if ( groupData.Pfp ) {
+            pfp = "G"+groupData.Id
+          }
+
+          document.getElementById("groupData").innerHTML = `
+            <div>
+              <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+              <div>
+                <div>${groupData.Name}</div>
+                <div>${groupData.Desc}</div>
+              </div>
+            </div>
+          `
+
+          document.getElementById("userGroups").innerHTML = ""
+
+          let adflag
+
+          groupData.Users.forEach(element => {
+            if ( element.Id == S ) {
+              adflag = element.IsAdmin
+              return
+            }
+          });
+
+          if (adflag) {
+            document.getElementById("addUserDiv").innerHTML = `
+            <hr>
+
+            Add User<br>
+            <form class="d-flex" role="search" onsubmit="addUserToGroup(${groupData.Id}); return false;">
+              <input class="form-control me-2" type="number" id="addUid" placeholder="user id" aria-label="Search">
+              <button class="btn btn-outline-success" type="submit">send</button>
+            </form>
+          `
+          }
+
+          groupData.Users.forEach(element => {
+            // console.log(element)
+            let pfp = "blank"
+            let isA = ""
+            let btnStr = ""
+
+            if ( element.Pfp ) {
+              pfp = "P"+element.Id
+            }
+
+            if ( element.IsAdmin ) {
+              isA = ` &nbsp;&nbsp; [ ADMIN ] &nbsp;&nbsp; `
+            }
+
+            if (adflag) {
+              btnStr += `<div class="btn-group" role="group" aria-label="Basic outlined example"> <button type="button" class="btn btn-outline-danger" onclick="kickUser(${groupData.Id}, ${element.Id})">kick</button>`
+              if ( !element.IsAdmin ) {
+                btnStr += `<button type="button" class="btn btn-outline-success" onclick="manageAdmin(${groupData.Id}, ${element.Id}, true)">give admin</button>`
+              }
+              btnStr += `<button type="button" class="btn btn-outline-warning" onclick="manageAdmin(${groupData.Id}, ${element.Id}, false)">remove admin</button> </div>`
+            }
+
+            document.getElementById("userGroups").innerHTML += `
+              <div>
+                <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+                ${element.Username} ${isA}
+                ${btnStr}
+              </div>
+            `
+          });
+        })
+        .catch(error => console.log('error', error));
+    }
+
+    function kickUser(gid, userId) {
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+
+      var raw = JSON.stringify({
+        "s": S,
+        "groupid": gid,
+        "userid": userId
+      });
+
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: raw,
+        redirect: 'follow'
+      };
+
+      fetch("http://localhost:8080/group/admin/kick", requestOptions)
+        .then(response => response.text())
+        .then(result => {
+          res = JSON.parse(result)
+          if (res.code == '200') {
+            drawGroupModal(gid)
+          }
+          console.log(res)
+        })
+        .catch(error => console.log('error', error));
+    }
+
+    function manageAdmin (gid, userId, isad) {
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+
+      var raw = JSON.stringify({
+        "s": S,
+        "groupid": gid,
+        "userid": userId,
+        "isadmin": isad
+      });
+
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: raw,
+        redirect: 'follow'
+      };
+
+      fetch("http://localhost:8080/group/admin/manage", requestOptions)
+        .then(response => response.text())
+        .then(result => {
+          res = JSON.parse(result)
+          if (res.code == '200') {
+            drawGroupModal(gid)
+          }
+        })
+        .catch(error => console.log('error', error));
+    }
+
+    function addUserToGroup (gid) {
+      let userid = parseInt( document.getElementById("addUid").value )
+      if ( isNaN(userid) ) {
+        return
+      }
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+
+      var raw = JSON.stringify({
+        "s": S,
+        "groupid": gid,
+        "userid": userid
+      });
+
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: raw,
+        redirect: 'follow'
+      };
+
+      fetch("http://localhost:8080/group/adduser", requestOptions)
+        .then(response => response.text())
+        .then(result => {
+          res = JSON.parse(result)
+          if (res.code == '200') {
+            drawGroupModal(gid)
+            return
+          }
+          console.log(result)
+        })
+        .catch(error => console.log('error', error));
+    }
+
   </script>
 
 <!-- partial:index.partial.html -->
@@ -386,7 +570,7 @@
   </div> <!-- end container -->
 
 
-  <!-- friendRequests modal -->
+  <!-- user modal -->
 <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -430,6 +614,31 @@
           <div id="freqs">
 
           </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group Requests Modal -->
+  <div class="modal fade" id="groupRequestsModal" tabindex="-1" aria-labelledby="groupRequestsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="groupRequestsModalLabel">Group Requests</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+
+          <div id="groupData"></div>
+
+          <hr>
+
+          Users:<br>
+
+          <div id="userGroups"></div>
+
+          <div id="addUserDiv"></div>
 
         </div>
       </div>

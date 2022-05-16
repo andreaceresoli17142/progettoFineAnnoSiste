@@ -105,6 +105,6 @@ INSERT INTO PrivateMessages ( id, user ) VALUES ( 1, 2 );
 INSERT INTO GroupNames ( name, description, profilePic ) VALUES ( "gruppo tennici", "taurone sei un grande", 1 );
 INSERT INTO GroupNames ( name, description ) VALUES ( "gruppo tennici (senza taurone)", "tutti i miei amici odiano taurone" );
 
-INSERT INTO GroupMembers ( id, user ) VALUES ( 1, 1 );
+INSERT INTO GroupMembers ( id, user, isAdmin ) VALUES ( 1, 1, 1 );
 INSERT INTO GroupMembers ( id, user ) VALUES ( 1, 2 );
-INSERT INTO GroupMembers ( id, user ) VALUES ( 2, 1 );
+INSERT INTO GroupMembers ( id, user, isAdmin ) VALUES ( 2, 1, 1 );
