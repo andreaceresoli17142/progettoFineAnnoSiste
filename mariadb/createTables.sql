@@ -96,7 +96,7 @@ INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_logi
 
 INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_login) VALUES ( "taurone", "taurone.mario@gimelli.com", CURRENT_DATE(), "no job gang", 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP());
 
-INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_login) VALUES ( "taurone", "taurone.mario@gimelli.com", CURRENT_DATE(), "no job gang", 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP());
+INSERT INTO Users ( username, email, date_of_join, state, salt, pHash, last_login) VALUES ( "davidone", "davidone.coooose@gimelli.com", CURRENT_DATE(), "cooooose", 66858, "ac7c27a867f92dbecc637a14afae8657f2c2a65eb47faeb3a6cadcad21c17da0", CURRENT_TIMESTAMP());
 
 
 INSERT INTO PrivateMessages ( id, user ) VALUES ( 1, 1 );

@@ -10,10 +10,9 @@ import ( // {{{
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
 
-//TODO: add message time
 //TODO: modifiable profile pics
 //TODO: modifiable statuses
-//TODO: add read message
+//? add read message?
 
 // conversations {{{
 func getConversations(w http.ResponseWriter, r *http.Request) {
@@ -679,21 +678,30 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get friend request")
 
-	type Res struct {
-		S int `json:"s"`
+	// type Res struct {
+	// 	S int `json:"s"`
+	// }
+
+	// // b, err := ioutil.ReadAll(r.Body)
+
+	// var resp Res
+
+	// err := httpGetBody(r, &resp)
+	// // err = json.Unmarshal(b, &resp)
+
+	// userId := resp.S
+
+	v := r.URL.Query()
+
+	userId, err := strconv.Atoi(v.Get("S"))
+
+	if userId == 0 {
+		httpError(&w, 300, "missing parameters")
+		return
 	}
 
-	// b, err := ioutil.ReadAll(r.Body)
-
-	var resp Res
-
-	err := httpGetBody(r, &resp)
-	// err = json.Unmarshal(b, &resp)
-
-	userId := resp.S
-
 	if err != nil {
-		httpError(&w, 500, "error getting body: "+err.Error())
+		httpError(&w, 500, "error getting urldata: "+err.Error())
 		return
 	}
 
@@ -756,8 +764,9 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: accept friend request")
 
 	type Res struct {
-		S  int `json:"s"`
-		Id int `json:"id"`
+		S   int  `json:"s"`
+		Id  int  `json:"id"`
+		Acc bool `json:"accept"`
 	}
 
 	// b, err := ioutil.ReadAll(r.Body)
@@ -769,6 +778,8 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	userId := resp.S
 	reqId := resp.Id
+
+	Debugln(resp)
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
@@ -812,31 +823,34 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var maxPm int
+	if resp.Acc {
 
-	err = db.QueryRow(`SELECT MAX(id) FROM PrivateMessages;`).Scan(&maxPm)
+		var maxPm int
 
-	if err == sql.ErrNoRows {
-		maxPm = 0
-	}
+		err = db.QueryRow(`SELECT MAX(id) FROM PrivateMessages;`).Scan(&maxPm)
 
-	if err != nil {
-		httpError(&w, 500, "error executing query: "+err.Error())
-		return
-	}
+		if err == sql.ErrNoRows {
+			maxPm = 0
+		}
 
-	maxPm++
+		if err != nil {
+			httpError(&w, 500, "error executing query: "+err.Error())
+			return
+		}
 
-	_, err = db.Exec(`
-		INSERT INTO PrivateMessages (id, user)
-		VALUES
-		( ?, ? ),
-		( ?, ? );
-	`, maxPm, sender, maxPm, userId)
+		maxPm++
 
-	if err != nil {
-		httpError(&w, 500, "backend error: "+err.Error())
-		return
+		_, err = db.Exec(`
+			INSERT INTO PrivateMessages (id, user)
+			VALUES
+			( ?, ? ),
+			( ?, ? );
+		`, maxPm, sender, maxPm, userId)
+
+		if err != nil {
+			httpError(&w, 500, "backend error: "+err.Error())
+			return
+		}
 	}
 
 	httpSuccess(&w, 200, "request accepted succesfully")
