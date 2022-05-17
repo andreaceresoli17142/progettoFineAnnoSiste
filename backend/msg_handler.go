@@ -14,7 +14,7 @@ import ( // {{{
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
 
-//TODO: modifiable profile pics
+//TODO: modifiable profile pics ~
 //TODO: modifiable statuses
 //? add read message?
 
@@ -391,12 +391,6 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 	// err = json.Unmarshal(b, &resp)
 	userId := resp.S
 
-	var Pfp = false
-
-	if resp.Pfp != "" {
-		Pfp = true
-	}
-
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
 		return
@@ -437,16 +431,7 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec(`UPDATE GroupNames SET name = ?, description = ?, profilePic = ? WHERE id = ?;`, resp.Name, resp.Desc, Pfp, resp.GroupId)
-
-	if err != nil {
-		httpError(&w, 500, "backend error")
-		return
-	}
-
-	// Debugln(resp)
-
-	if Pfp {
+	if resp.Pfp != "" {
 		img, err := base64.StdEncoding.DecodeString(strings.Split(resp.Pfp, ",")[1])
 		if err != nil {
 			httpError(&w, 500, "backend error:"+err.Error())
@@ -458,10 +443,17 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 			httpError(&w, 500, "backend error:"+err.Error())
 			return
 		}
+		_, err = db.Exec(`UPDATE GroupNames SET name = ?, description = ?, profilePic = ? WHERE id = ?;`, resp.Name, resp.Desc, true, resp.GroupId)
+	} else {
+		_, err = db.Exec(`UPDATE GroupNames SET name = ?, description = ? WHERE id = ?;`, resp.Name, resp.Desc, resp.GroupId)
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error")
+		return
 	}
 
 	httpSuccess(&w, 200, "success")
-
 }
 
 func createGroup(w http.ResponseWriter, r *http.Request) {

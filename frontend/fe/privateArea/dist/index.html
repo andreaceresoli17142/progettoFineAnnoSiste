@@ -366,6 +366,90 @@
         .catch(error => console.log('error', error));
     }
 
+    function changeGroupData(gid){
+
+      var file = document.getElementById("group-pfp-input").files[0];
+
+
+      var newName = document.getElementById("update-group-name").value
+      var newDesc = document.getElementById("update-group-desc").value
+
+      if ( newName == "" || newDesc == "" ) {
+        return
+      }
+
+      var myHeaders = new Headers();
+      // myHeaders.append("Authorization", "Bearer 8eFRkyFOkmHRqbbGNM78VEoGdVq9Voty9gFzWSYMQ1SVrt7uUQybtiRmeFFlPPuV");
+      myHeaders.append("Content-Type", "application/json");
+
+      if ( file == undefined ) {
+        var raw = JSON.stringify({
+          "s": S,
+          "groupid": gid,
+          "name": newName,
+          "desc": newDesc,
+          "pfp": ""
+        });
+
+        var requestOptions = {
+          method: 'POST',
+          headers: myHeaders,
+          body: raw,
+          redirect: 'follow'
+        };
+
+        fetch("http://localhost:8080/group/change", requestOptions)
+          .then(response => response.text())
+          .then(result => {
+            console.log(result)
+            res = JSON.parse(result)
+            if (res.code == '200') {
+              drawConversation()
+              loadMessages("G"+gid)
+              return
+            }
+            console.log(result)
+          })
+          .catch(error => console.log('error', error));
+        return
+      }
+
+      var reader  = new FileReader();
+      reader.onload = function(e)  {
+
+        var raw = JSON.stringify({
+          "s": S,
+          "groupid": gid,
+          "name": newName,
+          "desc": newDesc,
+          "pfp": e.target.result
+        });
+
+        var requestOptions = {
+          method: 'POST',
+          headers: myHeaders,
+          body: raw,
+          redirect: 'follow'
+        };
+
+        fetch("http://localhost:8080/group/change", requestOptions)
+          .then(response => response.text())
+          .then(result => {
+            console.log(result)
+            res = JSON.parse(result)
+            if (res.code == '200') {
+              drawConversation()
+              loadMessages("G"+gid)
+              return
+            }
+            console.log(result)
+          }
+          ).catch(error => console.log('error', error));
+     }
+     // you have to declare the file loading
+     reader.readAsDataURL(file);
+    }
+
     function drawGroupModal(gid) {
       var requestOptions = {
         method: 'GET',
@@ -386,13 +470,13 @@
 
           document.getElementById("groupData").innerHTML = `
             <div>
-              <input id="group-pfp-input" type="file" name="name" style="display: none;" onchange="changePfp("group-pfp", "group-pfp-input")" />
+              <input id="group-pfp-input" type="file" name="name" style="display: none;" onchange="changePfp('group-pfp', 'group-pfp-input')" />
               <img id="group-pfp" class="pfp" src="http://localhost/assets/${pfp}" onclick="document.getElementById('group-pfp-input').click()" alt="avatar" />
               <div>
-                <div>${groupData.Name}</div>
-                <div>${groupData.Desc}</div>
+                <input id="update-group-name" type="text" value="${groupData.Name}" placeholder="group name" /> <br>
+                <input id="update-group-desc" type="text" value="${groupData.Desc}" placeholder="group desc" />
               </div>
-              <button type="button" class="btn btn-primary" onclick="changeGroupData()">Change</button>
+              <button type="button" class="btn btn-primary" onclick="changeGroupData(${gid})">Change</button>
             </div>
           `
 
@@ -561,12 +645,12 @@
 
     function newGroupData() {
       var file = document.getElementById("new-group-pfp-input").files[0];
-      console.log(file)
+      // console.log(file)
       var name = document.getElementById("new-group-name-input").value
       var desc = document.getElementById("new-group-desc-input").value
 
-      console.log(name)
-      console.log(desc)
+      // console.log(name)
+      // console.log(desc)
 
       if ( name == "" || desc == "" ) {
         return
@@ -575,9 +659,10 @@
       document.getElementById("new-group-name-input").innerText = ""
       document.getElementById("new-group-desc-input").innerText = ""
 
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+
       if ( file == undefined ) {
-        var myHeaders = new Headers();
-        myHeaders.append("Content-Type", "application/json");
 
         var raw = JSON.stringify({
           "s": S,
@@ -639,7 +724,7 @@
               return
             }
             console.log(result)
-            }
+          }
           ).catch(error => console.log('error', error));
      }
      // you have to declare the file loading
@@ -698,19 +783,15 @@
 
 
   <!-- user modal -->
-<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+<div class="modal fade" id="userDataModal" tabindex="-1" aria-labelledby="userDataModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+        <h5 class="modal-title" id="userDataModalLabel">Modal title</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        ...
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary">Save changes</button>
+
       </div>
     </div>
   </div>
