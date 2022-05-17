@@ -85,6 +85,7 @@ func handleRequests() {
 
 	groupRouter := rootRouter.PathPrefix("/group").Subrouter()
 	groupRouter.HandleFunc("/adduser", addToGroup).Methods("POST", "OPTIONS")
+	groupRouter.HandleFunc("/change", changeGroupData).Methods("POST", "OPTIONS")
 	groupRouter.HandleFunc("/getdata", getGroupData).Methods("GET", "OPTIONS")
 	groupRouter.HandleFunc("/create", createGroup).Methods("POST", "OPTIONS")
 	groupRouter.HandleFunc("/quit", quitGroup).Methods("POST", "OPTIONS")

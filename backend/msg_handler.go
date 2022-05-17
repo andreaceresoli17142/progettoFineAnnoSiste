@@ -2,10 +2,14 @@ package main
 
 import ( // {{{
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 ) // }}}
@@ -370,6 +374,96 @@ func quitGroup(w http.ResponseWriter, r *http.Request) {
 	httpSuccess(&w, 200, "success")
 }
 
+func changeGroupData(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: change group data")
+
+	type Gd struct {
+		S       int    `json:"S"`
+		GroupId int    `json:"groupid"`
+		Name    string `json:"name"`
+		Desc    string `json:"desc"`
+		Pfp     string `json:"pfp"`
+	}
+
+	var resp Gd
+
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
+	userId := resp.S
+
+	var Pfp = false
+
+	if resp.Pfp != "" {
+		Pfp = true
+	}
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var i int
+
+	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, userId).Scan(&i)
+
+	if err != nil && err == sql.ErrNoRows {
+		httpError(&w, 300, "you are not in the selected group")
+		return
+	}
+
+	if err != nil && err != sql.ErrNoRows {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, userId).Scan(&i)
+
+	if i == 0 {
+		httpError(&w, 300, "you are not an administrator of this group")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	_, err = db.Exec(`UPDATE GroupNames SET name = ?, description = ?, profilePic = ? WHERE id = ?;`, resp.Name, resp.Desc, Pfp, resp.GroupId)
+
+	if err != nil {
+		httpError(&w, 500, "backend error")
+		return
+	}
+
+	// Debugln(resp)
+
+	if Pfp {
+		img, err := base64.StdEncoding.DecodeString(strings.Split(resp.Pfp, ",")[1])
+		if err != nil {
+			httpError(&w, 500, "backend error:"+err.Error())
+			return
+		}
+		permissions := 0644 // or whatever you need
+		err = ioutil.WriteFile("../frontend/fe/assets/G"+fmt.Sprint(resp.GroupId), img, fs.FileMode(permissions))
+		if err != nil {
+			httpError(&w, 500, "backend error:"+err.Error())
+			return
+		}
+	}
+
+	httpSuccess(&w, 200, "success")
+
+}
+
 func createGroup(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: add user to group")
 
@@ -377,6 +471,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 		S         int    `json:"s"`
 		GroupName string `json:"name"`
 		GroupDesc string `json:"desc"`
+		Pfp       string `json:"pfp"`
 	}
 
 	var resp ReqData
@@ -384,6 +479,12 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	err := httpGetBody(r, &resp)
 	// err = json.Unmarshal(b, &resp)
 	userId := resp.S
+
+	var Pfp = false
+
+	if resp.Pfp != "" {
+		Pfp = true
+	}
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
@@ -401,7 +502,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 
 	var groupId int64
 
-	res, err := db.Exec(`INSERT INTO GroupNames (name, description) VALUES (?, ?);`, resp.GroupName, resp.GroupDesc)
+	res, err := db.Exec(`INSERT INTO GroupNames (name, description, profilePic) VALUES (?, ?, ?);`, resp.GroupName, resp.GroupDesc, Pfp)
 
 	if err != nil {
 		httpError(&w, 500, "backend error")
@@ -420,6 +521,22 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpError(&w, 500, "backend error")
 		return
+	}
+
+	// Debugln(resp)
+
+	if Pfp {
+		img, err := base64.StdEncoding.DecodeString(strings.Split(resp.Pfp, ",")[1])
+		if err != nil {
+			httpError(&w, 500, "backend error:"+err.Error())
+			return
+		}
+		permissions := 0644 // or whatever you need
+		err = ioutil.WriteFile("../frontend/fe/assets/G"+fmt.Sprint(groupId), img, fs.FileMode(permissions))
+		if err != nil {
+			httpError(&w, 500, "backend error:"+err.Error())
+			return
+		}
 	}
 
 	httpSuccess(&w, 200, "success")

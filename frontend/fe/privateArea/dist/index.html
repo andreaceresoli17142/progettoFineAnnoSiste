@@ -64,6 +64,8 @@
     }
 
     function drawConversation() {
+      document.getElementById("userbar").innerHTML = ""
+
       var requestOptions = {
         method: 'GET',
         redirect: 'follow'
@@ -384,11 +386,13 @@
 
           document.getElementById("groupData").innerHTML = `
             <div>
-              <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+              <input id="group-pfp-input" type="file" name="name" style="display: none;" onchange="changePfp("group-pfp", "group-pfp-input")" />
+              <img id="group-pfp" class="pfp" src="http://localhost/assets/${pfp}" onclick="document.getElementById('group-pfp-input').click()" alt="avatar" />
               <div>
                 <div>${groupData.Name}</div>
                 <div>${groupData.Desc}</div>
               </div>
+              <button type="button" class="btn btn-primary" onclick="changeGroupData()">Change</button>
             </div>
           `
 
@@ -541,6 +545,125 @@
         .catch(error => console.log('error', error));
     }
 
+    function changePfp(pfpId, formid) {
+      var file = document.getElementById(formid).files[0];
+      console.log(file)
+      var reader  = new FileReader();
+      reader.onload = function(e)  {
+        var image = document.getElementById(pfpId);
+        // the result image data
+        image.src = e.target.result;
+        console.log(e.target.result)
+     }
+     // you have to declare the file loading
+     reader.readAsDataURL(file);
+    }
+
+    function newGroupData() {
+      var file = document.getElementById("new-group-pfp-input").files[0];
+      console.log(file)
+      var name = document.getElementById("new-group-name-input").value
+      var desc = document.getElementById("new-group-desc-input").value
+
+      console.log(name)
+      console.log(desc)
+
+      if ( name == "" || desc == "" ) {
+        return
+      }
+
+      document.getElementById("new-group-name-input").innerText = ""
+      document.getElementById("new-group-desc-input").innerText = ""
+
+      if ( file == undefined ) {
+        var myHeaders = new Headers();
+        myHeaders.append("Content-Type", "application/json");
+
+        var raw = JSON.stringify({
+          "s": S,
+          "name": name,
+          "desc": desc,
+          "pfp": ""
+        });
+
+        var requestOptions = {
+          method: 'POST',
+          headers: myHeaders,
+          body: raw,
+          redirect: 'follow'
+        };
+
+        fetch("http://localhost:8080/group/create", requestOptions)
+          .then(response => response.text())
+          .then(result => {
+            res = JSON.parse(result)
+            if (res.code == '200') {
+              drawConversation()
+              return
+            }
+            console.log(result)
+            }
+          ).catch(error => console.log('error', error));
+        return
+      }
+
+      var reader  = new FileReader();
+      reader.onload = function(e)  {
+        var image = document.getElementById("new-group-pfp");
+        // the result image data
+        image.src = e.target.result;
+        console.log(e.target.result)
+        var myHeaders = new Headers();
+        myHeaders.append("Content-Type", "application/json");
+
+        var raw = JSON.stringify({
+          "s": S,
+          "name": name,
+          "desc": desc,
+          "pfp": e.target.result
+        });
+
+        var requestOptions = {
+          method: 'POST',
+          headers: myHeaders,
+          body: raw,
+          redirect: 'follow'
+        };
+
+        fetch("http://localhost:8080/group/create", requestOptions)
+          .then(response => response.text())
+          .then(result => {
+            res = JSON.parse(result)
+            if (res.code == '200') {
+              drawConversation()
+              return
+            }
+            console.log(result)
+            }
+          ).catch(error => console.log('error', error));
+     }
+     // you have to declare the file loading
+     reader.readAsDataURL(file);
+    }
+
+    function initCreateGroupModal() {
+      document.getElementById("createGroupFrm").innerHTML = `
+      <div>
+        <input id="new-group-pfp-input" type="file" name="name" style="display: none;" onchange="changePfp('new-group-pfp','new-group-pfp-input')" />
+        <img id="new-group-pfp" class="pfp" src="http://localhost/assets/blank" onclick="document.getElementById('new-group-pfp-input').click()" alt="avatar" />
+        <div>
+          <br>
+          <input type="text" id="new-group-name-input" placeholder="group name" />
+          <br>
+          <input type="text" id="new-group-desc-input" placeholder="group desc" />
+          <br>
+        </div>
+        <br>
+        <button type="button" class="btn btn-primary" onclick="newGroupData()">Change</button>
+      </div>
+      `
+    }
+
   </script>
 
 <!-- partial:index.partial.html -->
@@ -556,6 +679,10 @@
 
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#friendRequestsModal" onclick="getFriendRequests()">
         <i class="fa fa-user-plus" aria-hidden="true"></i>
+      </button>
+
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#groupCreateModal" onclick="initCreateGroupModal()">
+        <i class="fa fa-plus" aria-hidden="true"></i>
       </button>
 
       <ul id="userbar" class="list">
@@ -644,6 +771,21 @@
       </div>
     </div>
   </div>
+
+    <!-- Create Group Modal -->
+    <div class="modal fade" id="groupCreateModal" tabindex="-1" aria-labelledby="groupCreateModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="groupCreateModalLabel">Create Group</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="createGroupFrm"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
 <!-- partial -->
   <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
