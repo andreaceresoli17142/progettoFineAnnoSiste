@@ -657,22 +657,22 @@ func BearerAuthHeader(authHeader string) string {
 
 	tokenSigPair := strings.TrimSpace(parts[1])
 
-	// if len(tokenSigPair) < 1 {
-	// 	return ""
-	// }
+	if len(tokenSigPair) < 1 {
+		return ""
+	}
 
 	// Debugf("pk: %v\npvk: %v", *publicKey, *privateKey)
 
-	// token, err := verifyRsaSignature(publicKey, tokenSigPair)
+	token, err := verifyRsaSignature(publicKey, tokenSigPair)
 
-	// if err != nil {
-	// Debugln("err: " + err.Error())
-	// return ""
-	// }
+	if err != nil {
+		Debugln("err: " + err.Error())
+		return ""
+	}
 
-	// ret, _ := validate(token, "")
+	ret, _ := validate(token, "")
 
-	ret := tokenSigPair
+	// ret := tokenSigPair
 
 	return ret
 }

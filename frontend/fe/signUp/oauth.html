@@ -128,7 +128,7 @@
 				setCookie( "rft", ret.refresh_token, ret.rft_expt )
 
 				setCookie( "oauthState", undefined, -1 )
-				window.location.replace("../privateArea/index.html");
+				window.location.replace("../privateArea/dist/index.html");
 			})
 			.catch(error => console.log('error', error));
 			return false

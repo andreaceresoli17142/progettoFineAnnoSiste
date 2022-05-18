@@ -75,7 +75,7 @@
 			setCookie( "act", ret.access_token, ret.act_expt )
 			setCookie( "rft", ret.refresh_token, ret.rft_expt )
 
-			window.location.replace("../privateArea/index.html");
+			window.location.replace("../privateArea/dist/index.html");
 		}
 
 		function login(email, password){
@@ -133,7 +133,7 @@
 			if (ret.code == 200) {
 				setCookie( "act", ret.access_token, ret.act_expt )
 				setCookie( "rft", ret.refresh_token, ret.rft_expt )
-				window.location.replace("../privateArea/index.html")
+				window.location.replace("../privateArea/dist/index.html")
 				return
 			}
 			else{
@@ -186,7 +186,7 @@
             var act = getCookie("act")
 
 			if (act != undefined) {
-				window.location.replace("../privateArea/index.html");
+				window.location.replace("../privateArea/dist/index.html");
 				return
 			}
 

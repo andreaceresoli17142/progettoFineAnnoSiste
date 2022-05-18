@@ -47,6 +47,22 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func testData(w http.ResponseWriter, r *http.Request) {
 	socketSendNotification(1, `{"ConvId":"P1","Id": 3, "UserId": 1, "Username": "pima", "Text": "you have been hax", "Time": "2022-05-13 20:36:38"}`)
+
+	// act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	// uid, err := getAccessToken_usrid(act)
+
+	// if err != nil {
+	// 	httpError(&w, 500, "backend error: "+err.Error())
+	// 	return
+	// }
+
+	// if uid == -1 {
+	// 	httpError(&w, 300, "user does not exist")
+	// 	return
+	// }
+
+	// httpSuccess(&w, 200, fmt.Sprint(uid))
 }
 
 // route endpoints {{{
@@ -59,6 +75,7 @@ func handleRequests() {
 	rootRouter.HandleFunc("/change", changeUserData).Methods("POST", "OPTIONS")
 	rootRouter.HandleFunc("/websock", initSocket).Methods("GET", "OPTIONS")
 	rootRouter.HandleFunc("/test", testData).Methods("GET", "OPTIONS")
+	rootRouter.HandleFunc("/user/getdata", getUserDataEp).Methods("GET", "OPTIONS")
 
 	//TODO: https://github.com/dghubble/gologin
 	oauthRouter := rootRouter.PathPrefix("/oauth").Subrouter()

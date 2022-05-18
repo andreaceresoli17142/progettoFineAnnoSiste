@@ -95,28 +95,28 @@ func loadEnv() bool {
 		return false
 	}
 
-	// pk, ok := os.LookupEnv("PRIVATE_KEY")
-	// if !ok {
-	// 	// Errorln("missing noreply port from env variables")
-	// 	// return false
-	// 	kp, err := rsa.GenerateKey(rand.Reader, 2048)
-	// 	if err != nil {
-	// 		Errorln("error generating private key")
-	// 		return false
-	// 	}
-	// 	privateKey = kp
-	// 	pks := ExportRsaPrivateKeyAsPemStr(kp)
-	// 	os.Setenv("PRIVATE_KEY", pks)
-	// } else {
-	// 	rpk, err := ParseRsaPrivateKeyFromPemStr(pk)
-	// 	if err != nil {
-	// 		Errorln("error parsing private key")
-	// 		return false
-	// 	}
-	// 	privateKey = rpk
-	// }
+	pk, ok := os.LookupEnv("PRIVATE_KEY")
+	if !ok {
+		// Errorln("missing noreply port from env variables")
+		// return false
+		kp, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			Errorln("error generating private key")
+			return false
+		}
+		privateKey = kp
+		pks := ExportRsaPrivateKeyAsPemStr(kp)
+		os.Setenv("PRIVATE_KEY", pks)
+	} else {
+		rpk, err := ParseRsaPrivateKeyFromPemStr(pk)
+		if err != nil {
+			Errorln("error parsing private key")
+			return false
+		}
+		privateKey = rpk
+	}
 
-	// publicKey = &privateKey.PublicKey
+	publicKey = &privateKey.PublicKey
 
 	// secretMessage := "0"
 

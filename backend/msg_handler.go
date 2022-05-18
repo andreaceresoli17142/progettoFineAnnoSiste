@@ -29,30 +29,19 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 		ProfilePic  bool   `json:"pfp"`
 	}
 
-	// b, err := ioutil.ReadAll(r.Body)
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
 
-	v := r.URL.Query()
+	userId, err := getAccessToken_usrid(act)
 
-	userId, _ := strconv.Atoi(v.Get("S"))
-
-	if userId == 0 {
-		httpError(&w, 300, "missing parameters")
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
 		return
 	}
 
-	// type ReqData struct {
-	// 	UserId int `json:"userid"`
-	// }
-
-	// var resp ReqData
-
-	// err := httpGetBody(r, &resp)
-	// // err = json.Unmarshal(b, &resp)
-
-	// if err != nil {
-	// 	httpError(&w, 500, "error getting body: "+err.Error())
-	// 	return
-	// }
+	if userId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -154,17 +143,26 @@ func getSingleConversation(w http.ResponseWriter, r *http.Request) {
 
 	// b, err := ioutil.ReadAll(r.Body)
 
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	userId, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if userId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
+
 	v := r.URL.Query()
 
-	userId, _ := strconv.Atoi(v.Get("S"))
+	// userId, _ := strconv.Atoi(v.Get("S"))
 	tmpId := v.Get("convid")
 	convId, _ := strconv.Atoi(tmpId[1:])
 	conType := string(tmpId[0])
-
-	if userId == 0 {
-		httpError(&w, 300, "missing parameters")
-		return
-	}
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -228,7 +226,7 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 	// b, err := ioutil.ReadAll(r.Body)
 
 	type ReqData struct {
-		Sender  int `json:"s"`
+		Sender  int
 		GroupId int `json:"groupid"`
 		UserId  int `json:"userid"`
 	}
@@ -237,6 +235,20 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 
 	err := httpGetBody(r, &resp)
 	// err = json.Unmarshal(b, &resp)
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	resp.Sender, err = getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if resp.Sender == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
@@ -301,16 +313,30 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func quitGroup(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: add user to group")
+	fmt.Println("endpoint hit: quit group")
 
 	type ReqData struct {
-		Sender  int `json:"s"`
+		Sender  int
 		GroupId int `json:"groupid"`
 	}
 
 	var resp ReqData
 
 	err := httpGetBody(r, &resp)
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	resp.Sender, err = getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if resp.Sender == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
@@ -352,11 +378,19 @@ func quitGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
+	err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? GROUP BY(id);`, resp.GroupId).Scan(&i)
 
-	if i <= 1 {
-		httpError(&w, 300, "there has to be at least one administator in the group")
-		return
+	if i > 1 {
+		err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
+
+		if i <= 1 {
+			httpError(&w, 300, "there has to be at least one administator in the group")
+			return
+		}
+		if err != nil {
+			httpError(&w, 500, "backend error: "+err.Error())
+			return
+		}
 	}
 
 	if err != nil {
@@ -389,7 +423,21 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 
 	err := httpGetBody(r, &resp)
 	// err = json.Unmarshal(b, &resp)
-	userId := resp.S
+	// userId := resp.S
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	userId, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if userId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	if err != nil {
 		httpError(&w, 500, "error getting body: "+err.Error())
@@ -456,6 +504,78 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 	httpSuccess(&w, 200, "success")
 }
 
+func changeUserDataEP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: change user data")
+
+	type Gd struct {
+		S     int    `json:"S"`
+		State string `json:"state"`
+		Pfp   string `json:"pfp"`
+	}
+
+	var resp Gd
+
+	err := httpGetBody(r, &resp)
+	// err = json.Unmarshal(b, &resp)
+	// userId := resp.S
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	userId, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if userId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
+
+	if err != nil {
+		httpError(&w, 500, "error getting body: "+err.Error())
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	if resp.Pfp != "" {
+		img, err := base64.StdEncoding.DecodeString(strings.Split(resp.Pfp, ",")[1])
+		if err != nil {
+			httpError(&w, 500, "backend error:"+err.Error())
+			return
+		}
+		permissions := 0644 // or whatever you need
+		err = ioutil.WriteFile("../frontend/fe/assets/P"+fmt.Sprint(userId), img, fs.FileMode(permissions))
+		if err != nil {
+			httpError(&w, 500, "backend error:"+err.Error())
+			return
+		}
+		_, err = db.Exec(`UPDATE Users SET state = ?, profilePic = ? WHERE id = ?;`, resp.State, true, userId)
+	} else {
+		_, err = db.Exec(`UPDATE Users SET state = ? WHERE id = ?;`, resp.State, userId)
+	}
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			httpError(&w, 300, "no such user exists")
+			return
+		}
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	httpSuccess(&w, 200, "success")
+}
+
 func createGroup(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: add user to group")
 
@@ -470,7 +590,20 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 
 	err := httpGetBody(r, &resp)
 	// err = json.Unmarshal(b, &resp)
-	userId := resp.S
+	// userId := resp.S
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	userId, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if userId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	var Pfp = false
 
@@ -540,7 +673,7 @@ func adminManage(w http.ResponseWriter, r *http.Request) {
 	// b, err := ioutil.ReadAll(r.Body)
 
 	type ReqData struct {
-		Sender  int  `json:"s"`
+		Sender  int
 		GroupId int  `json:"groupid"`
 		UserId  int  `json:"userid"`
 		Fvalue  bool `json:"isadmin"`
@@ -550,6 +683,20 @@ func adminManage(w http.ResponseWriter, r *http.Request) {
 
 	err := httpGetBody(r, &resp)
 	// err = json.Unmarshal(b, &resp)
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	resp.Sender, err = getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if resp.Sender == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -625,7 +772,7 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 	// b, err := ioutil.ReadAll(r.Body)
 
 	type ReqData struct {
-		Sender  int `json:"s"`
+		Sender  int
 		GroupId int `json:"groupid"`
 		UserId  int `json:"userid"`
 	}
@@ -634,6 +781,20 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 
 	err := httpGetBody(r, &resp)
 	// err = json.Unmarshal(b, &resp)
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	resp.Sender, err = getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if resp.Sender == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	db, err := sql.Open("mysql", databaseString)
 
@@ -712,7 +873,7 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func getGroupData(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("endpoint hit: admin remove user")
+	fmt.Println("endpoint hit: get group data")
 	v := r.URL.Query()
 	// b, err := ioutil.ReadAll(r.Body)
 
@@ -739,8 +900,23 @@ func getGroupData(w http.ResponseWriter, r *http.Request) {
 	var resp ReqData
 
 	var ret GroupData
+	var err error
 
-	resp.Sender, _ = strconv.Atoi(v.Get("S"))
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	resp.Sender, err = getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if resp.Sender == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
+
+	// resp.Sender, _ = strconv.Atoi(v.Get("S"))
 	resp.GroupId, _ = strconv.Atoi(v.Get("groupid"))
 
 	if resp.Sender == 0 || resp.GroupId == 0 {
@@ -816,6 +992,56 @@ func getGroupData(w http.ResponseWriter, r *http.Request) {
 	httpSuccessf(&w, 200, `"data":%v`, string(a))
 }
 
+func getUserDataEp(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("endpoint hit: get user data")
+	// v := r.URL.Query()
+
+	type Data struct {
+		Id       int    `db:"id"`
+		Username string `db:"username"`
+		State    string `db:"state"`
+		Pfp      bool   `db:"profilePic"`
+	}
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	uid, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if uid == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
+
+	db, err := sql.Open("mysql", databaseString)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	var user Data
+
+	err = db.QueryRow(`SELECT username, state, profilePic FROM Users WHERE id = ?;`, uid).Scan(&user.Username, &user.State, &user.Pfp)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	user.Id = uid
+
+	a, _ := json.Marshal(user)
+
+	httpSuccessf(&w, 200, `"data":%v`, string(a))
+}
+
 // }}}
 
 // firends requests {{{
@@ -825,7 +1051,6 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 	// b, err := ioutil.ReadAll(r.Body)
 
 	type ReqData struct {
-		S      int `json:"s"`
 		UserId int `json:"userid"`
 	}
 
@@ -839,7 +1064,21 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requesterId := resp.S
+	// requesterId := resp.S
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	requesterId, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if requesterId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	requesteeId := resp.UserId
 
@@ -913,9 +1152,23 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	// userId := resp.S
 
-	v := r.URL.Query()
+	// v := r.URL.Query()
 
-	userId, err := strconv.Atoi(v.Get("S"))
+	// userId, err := strconv.Atoi(v.Get("S"))
+
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	userId, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if userId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	if userId == 0 {
 		httpError(&w, 300, "missing parameters")
@@ -998,7 +1251,21 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	err := httpGetBody(r, &resp)
 	// err = json.Unmarshal(b, &resp)
 
-	userId := resp.S
+	// userId := resp.S
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	userId, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if userId == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
+
 	reqId := resp.Id
 
 	Debugln(resp)
@@ -1099,7 +1366,20 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := resp.S
+	// user := resp.S
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	user, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if user == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
 
 	conType := string(resp.Id[0])
 
@@ -1200,7 +1480,21 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get messages")
 	v := r.URL.Query()
 
-	user, _ := strconv.Atoi(v.Get("S"))
+	// user, _ := strconv.Atoi(v.Get("S"))
+	act := BearerAuthHeader(r.Header.Get("Authorization"))
+
+	user, err := getAccessToken_usrid(act)
+
+	if err != nil {
+		httpError(&w, 500, "backend error: "+err.Error())
+		return
+	}
+
+	if user == -1 {
+		httpError(&w, 300, "user does not exist")
+		return
+	}
+
 	convid := v.Get("convid")
 
 	if user == 0 || convid == "" {
