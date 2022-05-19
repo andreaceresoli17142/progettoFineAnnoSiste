@@ -9,6 +9,37 @@
 <body>
   <script>
 
+    //TODO: add bootstrap toast for errors
+    //TODO: redirect user back to login if tokens are expired
+
+    function checkForTokenError(result, success, succArray, fail, failArr) {
+        // console.log("hey im in")
+
+      let resultJson = JSON.parse(result)
+      if ( resultJson.code == 200 ) {
+        // console.log("executing")
+        success(...succArray);
+        return
+      }
+
+      if ( resultJson.code == 401 ){
+        verifyAuthToken()
+        fail(...failArr);
+        return
+      }
+
+      console.log(resultJson.msg)
+    }
+
+    function getAct(){
+      let act = getCookie('act')
+      if ( act == undefined ) {
+        verifyAuthToken()
+        act= getCookie('act')
+      }
+      return act
+    }
+
     function getCookie(cName) {
 			const name = cName + "=";
 			const cDecoded = decodeURIComponent(document.cookie); //to be careful
@@ -34,57 +65,7 @@
 
     window.onload = function() {
 
-      function waitForId(){
-        setInterval(function(){
-          if (S == undefined){
-            waitForId()
-          }
-        }, 1)
-      }
-
       verifyAuthToken()
-
-      waitForId()
-
-      socket = new WebSocket("ws://localhost:8080/websock");
-
-      socket.onopen = function(e) {
-        console.log("[open] Connection established");
-        // let id = prompt("what's your id? ")
-        console.log("performing handshake");
-        socket.send(S);
-      };
-
-      socket.onmessage = function(event) {
-        console.log(`new data from server`);
-
-        // console.log(currconv)
-
-        // console.log(event.data)
-
-        let reqData = JSON.parse(event.data)
-        // console.log(reqData)
-
-        if ( reqData.ConvId == currconv ) {
-          drawMessage(reqData)
-        } else {
-
-        }
-      };
-
-      socket.onclose = function(event) {
-      if (event.wasClean) {
-        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-      } else {
-        // e.g. server process killed or network down
-        // event.code is usually 1006 in this case
-        console.log('[close] Connection died');
-      }
-      };
-
-      socket.onerror = function(error) {
-        console.log(`[error] ${error.message}`);
-      };
 
       drawConversation()
 
@@ -94,12 +75,7 @@
       loadUserData()
       document.getElementById("userbar").innerHTML = ""
 
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -112,14 +88,23 @@
 
       fetch(`http://localhost:8080/getconv`, requestOptions)
         .then(response => response.text())
-        .then(result => {
+        .then(result => checkForTokenError(result, function (result){
+
+          console.log(result)
 
           let dataArr = JSON.parse(result)
 
-          if ( dataArr.code != 200 ) {
-            console.log(dataArr.msg)
-            return
-          }
+          // if ( dataArr.code != 200 ) {
+
+          //   if ( dataArr.code == 401 ){
+          //     verifyAuthToken()
+          //     window.location.reload();
+          //     return
+          //   }
+
+          //   console.log(dataArr.msg)
+          //   return
+          // }
 
           dataArr.data.forEach(userData => {
 
@@ -140,18 +125,14 @@
 
             document.getElementById("name-"+userData.convId).innerText = userData.name
             document.getElementById("desc-"+userData.convId).innerText = userData.description
-          });
+          })
 
-          }).catch(error => console.log('error', error));
+          }, [result], () => {}, [])).catch(error => console.log('error', error));
     }
 
     function loadMessages (convId) {
-      let act = getCookie("act")
 
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -164,13 +145,28 @@
 
       fetch(`http://localhost:8080/getsingleconv?convid=${convId}`, requestOptions)
         .then(response => response.text())
-        .then(result => {
+        .then(result => checkForTokenError( result, function (result){
+
+          let dataArr = JSON.parse(result)
+
+          if ( dataArr.code != 200 ) {
+
+            if ( dataArr.code == 401 ){
+              verifyAuthToken()
+              window.location.reload();
+              return
+            }
+
+            console.log(dataArr.msg)
+            return
+          }
+
           drawChat(result, convId)
           fetch(`http://localhost:8080/msg/read?convid=${convId}`, requestOptions)
             .then(response => response.text())
-            .then(result => populateMess(result))
+            .then(result => checkForTokenError(result, populateMess(result), [result], loadMessages(convId), [convId]))
             .catch(error => console.log('error', error));
-        })
+        }, [result], loadMessages(), []))
         .catch(error => console.log('error', error));
 
     }
@@ -305,12 +301,7 @@
       }
 
       var myHeaders = new Headers();
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
       myHeaders.append("Authorization", "Bearer"+act)
 
       myHeaders.append("Content-Type", "application/json");
@@ -330,18 +321,13 @@
 
       fetch("http://localhost:8080/msg/send", requestOptions)
         .then(response => response.text())
-        .then(result => console.log(result) )
+        .then(result => checkForTokenError(result, () => {} , [], sendMessage(convId), [convId] ) )
         .catch(error => console.log('error', error));
     }
 
     function getFriendRequests(){
       var myHeaders = new Headers();
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       myHeaders.append("Authorization", "Bearer"+act)
 
@@ -354,7 +340,7 @@
 
       fetch("http://localhost:8080/freq/getreq", requestOptions)
         .then(response => response.text())
-        .then(result => {
+        .then(result => checkForTokenError( result, function(result) {
           console.log(result)
           let parsedData = JSON.parse(result)
 
@@ -374,19 +360,14 @@
               </div>
               </div>`
           });
-        })
+        }, [result], getFriendRequests(), [] ))
         .catch(error => console.log('error', error));
     }
 
     function sendFriendRequests(){
       let uid = parseInt(document.getElementById("Uid").value)
       var myHeaders = new Headers();
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       // var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -408,7 +389,7 @@
 
       fetch("http://localhost:8080/freq/makereq", requestOptions)
         .then(response => response.text())
-        .then(result => console.log(result))
+        .then(result => checkForTokenError(result, () => {}, [], sendFriendRequests(), [] ))
         .catch(error => console.log('error', error));
     }
 
@@ -441,7 +422,7 @@
 
       fetch("http://localhost:8080/freq/accreq", requestOptions)
         .then(response => response.text())
-        .then(result => {
+        .then(result => checkForTokenError( result, function (reqid, val) {
 
           document.getElementById("freq-"+reqid).remove()
 
@@ -449,7 +430,7 @@
             document.getElementById("userbar").innerHTML = ""
             drawConversation()
           }
-        })
+        }, [reqid, val], accFriendRequests(reqid, val), [reqid, val]))
         .catch(error => console.log('error', error));
     }
 
@@ -465,12 +446,7 @@
         return
       }
 
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -495,7 +471,7 @@
 
         fetch("http://localhost:8080/group/change", requestOptions)
           .then(response => response.text())
-          .then(result => {
+          .then(result =>  checkForTokenError( result, function (result, gid) {
             console.log(result)
             res = JSON.parse(result)
             if (res.code == '200') {
@@ -504,7 +480,7 @@
               return
             }
             console.log(result)
-          })
+          }, [result, gid], changeGroupData(gid), [gid]))
           .catch(error => console.log('error', error));
         return
       }
@@ -529,7 +505,7 @@
 
         fetch("http://localhost:8080/group/change", requestOptions)
           .then(response => response.text())
-          .then(result => {
+          .then(result => checkForTokenError( result, function(result, gid) {
             console.log(result)
             res = JSON.parse(result)
             if (res.code == '200') {
@@ -538,7 +514,7 @@
               return
             }
             console.log(result)
-          }
+          }, [result, gid], changeGroupData(gid), [gid] )
           ).catch(error => console.log('error', error));
      }
      // you have to declare the file loading
@@ -546,12 +522,7 @@
     }
 
     function drawGroupModal(gid) {
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -564,7 +535,7 @@
 
       fetch(`http://localhost:8080/group/getdata?&groupid=${gid}`, requestOptions)
         .then(response => response.text())
-        .then(result => {
+        .then(result => checkForTokenError( result, function (result, gid) {
           let unmarsh = JSON.parse(result)
           let groupData = unmarsh.data
           // console.log(groupData)
@@ -640,17 +611,12 @@
               </div>
             `
           });
-        })
+        }, [result, gid], drawGroupModal(gid), [gid]))
         .catch(error => console.log('error', error));
     }
 
     function kickUser(gid, userId) {
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -671,23 +637,18 @@
 
       fetch("http://localhost:8080/group/admin/kick", requestOptions)
         .then(response => response.text())
-        .then(result => {
+        .then(result => checkForTokenError(result, function (result, gid) {
           res = JSON.parse(result)
           if (res.code == '200') {
             drawGroupModal(gid)
           }
           console.log(res)
-        })
+        }, [result, gid], kickUser(gid, userId), [gid, userId]))
         .catch(error => console.log('error', error));
     }
 
     function manageAdmin (gid, userId, isad) {
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -709,12 +670,7 @@
 
       fetch("http://localhost:8080/group/admin/manage", requestOptions)
         .then(response => response.text())
-        .then(result => {
-          res = JSON.parse(result)
-          if (res.code == '200') {
-            drawGroupModal(gid)
-          }
-        })
+        .then(result => checkForTokenError( result, drawGroupModal(gid), [gid], manageAdmin(gid), [gid]))
         .catch(error => console.log('error', error));
     }
 
@@ -724,12 +680,7 @@
         return
       }
       var myHeaders = new Headers();
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
       myHeaders.append("Authorization", "Bearer"+act)
 
       myHeaders.append("Content-Type", "application/json");
@@ -749,14 +700,7 @@
 
       fetch("http://localhost:8080/group/adduser", requestOptions)
         .then(response => response.text())
-        .then(result => {
-          res = JSON.parse(result)
-          if (res.code == '200') {
-            drawGroupModal(gid)
-            return
-          }
-          console.log(result)
-        })
+        .then(result => checkForTokenError( result, drawGroupModal(gid), [gid], addUserToGroup(gid), [gid] ))
         .catch(error => console.log('error', error));
     }
 
@@ -791,12 +735,7 @@
       document.getElementById("new-group-desc-input").innerText = ""
 
       var myHeaders = new Headers();
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       myHeaders.append("Authorization", "Bearer"+act)
 
@@ -820,14 +759,7 @@
 
         fetch("http://localhost:8080/group/create", requestOptions)
           .then(response => response.text())
-          .then(result => {
-            res = JSON.parse(result)
-            if (res.code == '200') {
-              drawConversation()
-              return
-            }
-            console.log(result)
-            }
+          .then(result => checkForTokenError( result, drawConversation(), [], newGroupData(), [] )
           ).catch(error => console.log('error', error));
         return
       }
@@ -837,18 +769,8 @@
         var image = document.getElementById("new-group-pfp");
         // the result image data
         image.src = e.target.result;
-        console.log(e.target.result)
-        var myHeaders = new Headers();
-        let act = getCookie("act")
+        // console.log(e.target.result)
 
-        if ( act == undefined ) {
-          verifyAuthToken()
-          act = getCookie("act")
-        }
-
-        myHeaders.append("Authorization", "Bearer"+act)
-
-        myHeaders.append("Content-Type", "application/json");
 
         var raw = JSON.stringify({
           // "s": S,
@@ -866,14 +788,7 @@
 
         fetch("http://localhost:8080/group/create", requestOptions)
           .then(response => response.text())
-          .then(result => {
-            res = JSON.parse(result)
-            if (res.code == '200') {
-              drawConversation()
-              return
-            }
-            console.log(result)
-          }
+          .then(result => checkForTokenError( result, drawConversation(), [], newGroupData(), [])
           ).catch(error => console.log('error', error));
      }
      // you have to declare the file loading
@@ -900,12 +815,7 @@
 
     function quitGroup(gid) {
       var myHeaders = new Headers();
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       myHeaders.append("Authorization", "Bearer"+act)
 
@@ -925,24 +835,15 @@
 
       fetch("http://localhost:8080/group/quit", requestOptions)
         .then(response => response.text())
-        .then(result => {
-          re = JSON.parse(result)
-          if ( re.code == 200 ) {
-            window.location.reload();
-          }
-          console.log(result)
-        })
+        .then(result => checkForTokenError( result, function () {
+          window.location.reload();
+        }, [], quitGroup(gid), [gid]))
         .catch(error => console.log('error', error));
     }
 
     function loadUserData() {
 
-      let act = getCookie("act")
-
-      if ( act == undefined ) {
-        verifyAuthToken()
-        act = getCookie("act")
-      }
+      let act = getAct()
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", "Bearer"+act)
@@ -955,24 +856,59 @@
 
       fetch(`http://localhost:8080/user/getdata`, requestOptions)
         .then(response => response.text())
-        .then(result => {
-          console.log(result)
+        .then(result => checkForTokenError( result, function(result) {
           unm = JSON.parse(result)
-          if ( unm.code == 200 ) {
-            userData = unm.data
-            S=userData.Id
-            let pfp = "blank"
+          userData = unm.data
+          S=userData.Id
 
-            if ( userData.pfp ) {
-              pfp = "P"+userData.Id
-            }
-            document.getElementById("userDataDiv").innerHTML=`
-            <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
-              ${userData.Username}#${userData.Id}
-            `
+          socketConnect(S)
+
+          let pfp = "blank"
+
+          if ( userData.pfp ) {
+            pfp = "P"+userData.Id
           }
-        })
+          document.getElementById("userDataDiv").innerHTML=`
+          <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
+            ${userData.Username}#${userData.Id}
+          `
+        }, [result], loadUserData(), []))
         .catch(error => console.log('error', error));
+    }
+
+    function socketConnect(uid) {
+      socket = new WebSocket("ws://localhost:8080/websock");
+
+      socket.onopen = function(e) {
+        console.log("[open] Connection established");
+        console.log("performing handshake");
+      };
+
+      socket.onmessage = function(event) {
+        console.log(`new data from server`);
+
+        let reqData = JSON.parse(event.data)
+
+        if ( reqData.ConvId == currconv ) {
+          drawMessage(reqData)
+        } else {
+
+        }
+      };
+
+      socket.onclose = function(event) {
+      if (event.wasClean) {
+        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+      } else {
+        // e.g. server process killed or network down
+        // event.code is usually 1006 in this case
+        console.log('[close] Connection died');
+      }
+      };
+
+      socket.onerror = function(error) {
+        console.log(`[error] ${error.message}`);
+      };
     }
 
     function handleResultsRft(result){
@@ -1003,7 +939,13 @@
 			};
 
 			fetch("http://localhost:8080/auth/userft", requestOptions)
-			.then(response => response.text())
+			.then(response => {
+        let re = JSON.parse(response)
+
+        if (re.code != 200){
+          window.location = '../../auth/login.index'
+        }
+      })
 			.then(result => handleResultsRft(result));
 		}
 

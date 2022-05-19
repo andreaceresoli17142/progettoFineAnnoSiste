@@ -934,7 +934,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 			}
 			if usrid_1 != -1 {
 				httpError(&w, 400, "username already exists")
-				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"username already exists\" }")
+				// fmt.Fprint(w, "{ \"resp_code\":400, error: \"username already exists\" }")
 				return
 			}
 			q += " username = \"" + new_username + "\","
@@ -949,7 +949,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 			}
 			if usrid_1 != -1 {
 				httpError(&w, 400, "account using this email already exists")
-				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"account using this email already exists\" }")
+				// fmt.Fprint(w, "{ \"resp_code\":400, error: \"account using this email already exists\" }")
 				return
 			}
 			q += " email = \"" + new_email + "\","
@@ -964,7 +964,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 			}
 			if !loginState {
 				httpError(&w, 400, "password already in use")
-				// fmt.Fprint(w, "{ \"resp_code\":300, error: \"password already in use\" }")
+				// fmt.Fprint(w, "{ \"resp_code\":400, error: \"password already in use\" }")
 				return
 			}
 
@@ -981,7 +981,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 
 		if !sumChangesFlag {
 			httpError(&w, 400, "you need to specify a change")
-			// fmt.Fprintf(w, "{ \"resp_code\":300, error:\"you need to specify a change\"  }")
+			// fmt.Fprintf(w, "{ \"resp_code\":400, error:\"you need to specify a change\"  }")
 			return
 		}
 

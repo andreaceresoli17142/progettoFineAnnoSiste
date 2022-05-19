@@ -46,7 +46,7 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := strconv.Atoi(string(message[:]))
 	if err != nil {
-		httpError(&w, 300, "id is not an int")
+		httpError(&w, 400, "id is not an int")
 		return
 	}
 
@@ -60,6 +60,8 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 	} else {
 		socketsAndUsers[userId] = append(socketsAndUsers[userId], c)
 	}
+
+	Debugln(userId)
 
 	// socketsAndUsers[userId] = "ciao"
 

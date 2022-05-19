@@ -58,7 +58,7 @@ func testData(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	// if uid == -1 {
-	// 	httpError(&w, 300, "user does not exist")
+	// 	httpError(&w, 400, "user does not exist")
 	// 	return
 	// }
 

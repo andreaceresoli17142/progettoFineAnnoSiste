@@ -39,7 +39,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 401, "missing authentication")
 		return
 	}
 
@@ -153,7 +153,7 @@ func getSingleConversation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 401, "missing authentication")
 		return
 	}
 
@@ -200,7 +200,7 @@ func getSingleConversation(w http.ResponseWriter, r *http.Request) {
 			)
 		`, convId, userId)
 	} else {
-		httpError(&w, 300, "coversation type does not exist")
+		httpError(&w, 400, "coversation type does not exist")
 		return
 	}
 
@@ -208,7 +208,7 @@ func getSingleConversation(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			httpError(&w, 300, "conv does not exists")
+			httpError(&w, 400, "conv does not exists")
 			return
 		}
 		httpError(&w, 500, "error doing query: "+err.Error())
@@ -246,7 +246,7 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resp.Sender == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -269,7 +269,7 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if err != nil && err == sql.ErrNoRows {
-		httpError(&w, 300, "you are not in the selected group")
+		httpError(&w, 400, "you are not in the selected group")
 		return
 	}
 
@@ -286,14 +286,14 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		httpError(&w, 300, "user is not in the selected group")
+		httpError(&w, 400, "user is not in the selected group")
 		return
 	}
 
 	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if i == 0 {
-		httpError(&w, 300, "you are not an administrator of this group")
+		httpError(&w, 400, "you are not an administrator of this group")
 		return
 	}
 
@@ -334,7 +334,7 @@ func quitGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resp.Sender == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -357,7 +357,7 @@ func quitGroup(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if err != nil && err == sql.ErrNoRows {
-		httpError(&w, 300, "you are not in the selected group")
+		httpError(&w, 400, "you are not in the selected group")
 		return
 	}
 
@@ -369,7 +369,7 @@ func quitGroup(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if i == 0 {
-		httpError(&w, 300, "you are not an administrator of this group")
+		httpError(&w, 400, "you are not an administrator of this group")
 		return
 	}
 
@@ -384,7 +384,7 @@ func quitGroup(w http.ResponseWriter, r *http.Request) {
 		err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
 
 		if i <= 1 {
-			httpError(&w, 300, "there has to be at least one administator in the group")
+			httpError(&w, 400, "there has to be at least one administator in the group")
 			return
 		}
 		if err != nil {
@@ -435,7 +435,7 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 401, "missing authentication")
 		return
 	}
 
@@ -458,7 +458,7 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, userId).Scan(&i)
 
 	if err != nil && err == sql.ErrNoRows {
-		httpError(&w, 300, "you are not in the selected group")
+		httpError(&w, 400, "you are not in the selected group")
 		return
 	}
 
@@ -470,7 +470,7 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, userId).Scan(&i)
 
 	if i == 0 {
-		httpError(&w, 300, "you are not an administrator of this group")
+		httpError(&w, 400, "you are not an administrator of this group")
 		return
 	}
 
@@ -529,7 +529,7 @@ func changeUserDataEP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 401, "missing authentication")
 		return
 	}
 
@@ -566,7 +566,7 @@ func changeUserDataEP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			httpError(&w, 300, "no such user exists")
+			httpError(&w, 400, "no such user exists")
 			return
 		}
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -601,7 +601,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 401, "missing authentication")
 		return
 	}
 
@@ -694,7 +694,7 @@ func adminManage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resp.Sender == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -712,7 +712,7 @@ func adminManage(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if err != nil && err == sql.ErrNoRows {
-		httpError(&w, 300, "you are not in the selected group")
+		httpError(&w, 400, "you are not in the selected group")
 		return
 	}
 
@@ -728,14 +728,14 @@ func adminManage(w http.ResponseWriter, r *http.Request) {
 			httpError(&w, 500, "error doing control query: "+err.Error())
 			return
 		}
-		httpError(&w, 300, "user is not in the selected group")
+		httpError(&w, 400, "user is not in the selected group")
 		return
 	}
 
 	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if i == 0 {
-		httpError(&w, 300, "you are not an administrator of this group")
+		httpError(&w, 400, "you are not an administrator of this group")
 		return
 	}
 
@@ -747,7 +747,7 @@ func adminManage(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
 
 	if i <= 1 && resp.Fvalue == false {
-		httpError(&w, 300, "there has to be at least one administator in the group")
+		httpError(&w, 400, "there has to be at least one administator in the group")
 		return
 	}
 
@@ -792,7 +792,7 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resp.Sender == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -810,7 +810,7 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`SELECT id FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if err != nil && err == sql.ErrNoRows {
-		httpError(&w, 300, "you are not in the selected group")
+		httpError(&w, 400, "you are not in the selected group")
 		return
 	}
 
@@ -826,14 +826,14 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 			httpError(&w, 500, "error doing control query: "+err.Error())
 			return
 		}
-		httpError(&w, 300, "user is not in the selected group")
+		httpError(&w, 400, "user is not in the selected group")
 		return
 	}
 
 	err = db.QueryRow(`SELECT isAdmin FROM GroupMembers WHERE id = ? AND user = ?;`, resp.GroupId, resp.Sender).Scan(&i)
 
 	if i == 0 {
-		httpError(&w, 300, "you are not an administrator of this group")
+		httpError(&w, 400, "you are not an administrator of this group")
 		return
 	}
 
@@ -848,7 +848,7 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 		err = db.QueryRow(`SELECT COUNT(id) FROM GroupMembers WHERE id = ? AND isAdmin = 1 GROUP BY(id);`, resp.GroupId).Scan(&i)
 
 		if i <= 1 {
-			httpError(&w, 300, "there has to be at least one administator in the group")
+			httpError(&w, 400, "there has to be at least one administator in the group")
 			return
 		}
 		if err != nil {
@@ -912,7 +912,7 @@ func getGroupData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resp.Sender == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -920,7 +920,7 @@ func getGroupData(w http.ResponseWriter, r *http.Request) {
 	resp.GroupId, _ = strconv.Atoi(v.Get("groupid"))
 
 	if resp.Sender == 0 || resp.GroupId == 0 {
-		httpError(&w, 300, "missing parameters")
+		httpError(&w, 400, "missing parameters")
 		return
 	} // err = json.Unmarshal(b, &resp)
 
@@ -939,7 +939,7 @@ func getGroupData(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err != nil {
-			httpError(&w, 300, "you are not in the selected group")
+			httpError(&w, 400, "you are not in the selected group")
 			return
 		}
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -954,7 +954,7 @@ func getGroupData(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			httpError(&w, 300, "group does not exist")
+			httpError(&w, 400, "group does not exist")
 			return
 		}
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -1013,7 +1013,7 @@ func getUserDataEp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if uid == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -1076,7 +1076,7 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requesterId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -1085,7 +1085,7 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 	// requesteeId, _ := strconv.Atoi(resp.UserId)
 
 	if requesterId == requesteeId {
-		httpError(&w, 300, "you can't ask a friend request to yourself")
+		httpError(&w, 400, "you can't ask a friend request to yourself")
 		return
 	}
 
@@ -1166,12 +1166,12 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 401, "missing authentication")
 		return
 	}
 
 	if userId == 0 {
-		httpError(&w, 300, "missing parameters")
+		httpError(&w, 400, "missing parameters")
 		return
 	}
 
@@ -1262,7 +1262,7 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userId == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 401, "missing authentication")
 		return
 	}
 
@@ -1293,7 +1293,7 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	`, reqId, userId).Scan(&sender)
 
 	if err == sql.ErrNoRows {
-		httpError(&w, 300, "request does not exists")
+		httpError(&w, 400, "request does not exists")
 		return
 	}
 
@@ -1377,7 +1377,7 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
@@ -1403,7 +1403,7 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	} else if conType == "G" {
 		table = "GroupMembers"
 	} else {
-		httpError(&w, 300, "coversation type does not exist")
+		httpError(&w, 400, "coversation type does not exist")
 		return
 	}
 
@@ -1414,7 +1414,7 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	`, table), id, user).Scan(&sender)
 
 	if err == sql.ErrNoRows {
-		httpError(&w, 300, "conversation does not exists")
+		httpError(&w, 400, "conversation does not exists")
 		return
 	}
 
@@ -1491,14 +1491,14 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == -1 {
-		httpError(&w, 300, "user does not exist")
+		httpError(&w, 400, "user does not exist")
 		return
 	}
 
 	convid := v.Get("convid")
 
 	if user == 0 || convid == "" {
-		httpError(&w, 300, "missing parameters")
+		httpError(&w, 400, "missing parameters")
 		return
 	}
 
@@ -1535,7 +1535,7 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	} else if conType == "G" {
 		table = "GroupMembers"
 	} else {
-		httpError(&w, 300, "coversation type does not exist")
+		httpError(&w, 400, "coversation type does not exist")
 		return
 	}
 
@@ -1546,7 +1546,7 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	`, table), id, user).Scan(&sender)
 
 	if err == sql.ErrNoRows {
-		httpError(&w, 300, "conversation does not exists")
+		httpError(&w, 400, "conversation does not exists")
 		return
 	}
 

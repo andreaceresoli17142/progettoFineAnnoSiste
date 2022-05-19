@@ -15,7 +15,7 @@ func backendLogin(usr_id int, password string) (bool, error) { // {{{
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		// fmt.Fprintf(w, "{ \"resp_code\":400, error: \"%v\" }", err)
 		return false, err
 	}
 
@@ -30,7 +30,7 @@ func backendLogin(usr_id int, password string) (bool, error) { // {{{
 	}
 
 	if err != nil {
-		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		// fmt.Fprintf(w, "{ \"resp_code\":400, error: \"%v\" }", err)
 		return false, nil
 	}
 
@@ -69,7 +69,7 @@ func login(w http.ResponseWriter, r *http.Request) { // {{{
 	}
 
 	if usrId == -1 {
-		fmt.Fprintln(w, "{ \"resp_code\":300, error: \"wrong username or password\" }")
+		fmt.Fprintln(w, "{ \"resp_code\":400, error: \"wrong username or password\" }")
 		return
 	}
 
@@ -84,13 +84,13 @@ func login(w http.ResponseWriter, r *http.Request) { // {{{
 	if ret {
 
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+			fmt.Fprintf(w, "{ \"resp_code\":400, error: \"%v\" }", err)
 		}
 
 		act, expt, rft, err := generateTokenCouple(usrId)
 
 		if err != nil {
-			fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+			fmt.Fprintf(w, "{ \"resp_code\":400, error: \"%v\" }", err)
 			return
 		}
 
@@ -98,7 +98,7 @@ func login(w http.ResponseWriter, r *http.Request) { // {{{
 		return
 	}
 
-	fmt.Fprintln(w, "{ \"resp_code\":300, error: \"wrong username or password\" }")
+	fmt.Fprintln(w, "{ \"resp_code\":400, error: \"wrong username or password\" }")
 } // }}}
 
 func refreshTokenReq(w http.ResponseWriter, r *http.Request) { // {{{
@@ -115,7 +115,7 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) { // {{{
 	act, expt, rft, err := useRefreshToken(reft)
 
 	if err != nil {
-		fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		fmt.Fprintf(w, "{ \"resp_code\":400, error: \"%v\" }", err)
 		return
 	}
 
@@ -158,7 +158,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 	}
 
 	if usrId == -1 {
-		fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
+		fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
 		return
 	}
 
@@ -183,7 +183,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 				return
 			}
 			if usrid_1 != -1 {
-				fmt.Fprint(w, "{ \"resp_code\":300, error: \"username already exists\" }")
+				fmt.Fprint(w, "{ \"resp_code\":400, error: \"username already exists\" }")
 				return
 			}
 			q += " username = \"" + new_username + "\","
@@ -197,7 +197,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 				return
 			}
 			if usrid_1 != -1 {
-				fmt.Fprint(w, "{ \"resp_code\":300, error: \"account using this email already exists\" }")
+				fmt.Fprint(w, "{ \"resp_code\":400, error: \"account using this email already exists\" }")
 				return
 			}
 			q += " email = \"" + new_email + "\","
@@ -211,7 +211,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 				return
 			}
 			if !loginState {
-				fmt.Fprint(w, "{ \"resp_code\":300, error: \"password already in use\" }")
+				fmt.Fprint(w, "{ \"resp_code\":400, error: \"password already in use\" }")
 				return
 			}
 
@@ -227,7 +227,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 		}
 
 		if !sumChangesFlag {
-			fmt.Fprintf(w, "{ \"resp_code\":300, error:\"you need to specify a change\"  }")
+			fmt.Fprintf(w, "{ \"resp_code\":400, error:\"you need to specify a change\"  }")
 			return
 		}
 
@@ -255,7 +255,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {// {{{
 		return
 	}
 
-	fmt.Fprintf(w, "{ \"resp_code\":300, error:\"invalid access token\"  }")
+	fmt.Fprintf(w, "{ \"resp_code\":400, error:\"invalid access token\"  }")
 }// }}}
 
 func getUserDataReq(w http.ResponseWriter, r *http.Request) { // {{{
@@ -321,7 +321,7 @@ func send_otp_retrivePassword (w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("mysql", databaseString)
 
 	if err != nil {
-		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		// fmt.Fprintf(w, "{ \"resp_code\":400, error: \"%v\" }", err)
 		return false, err
 	}
 
@@ -336,11 +336,11 @@ func send_otp_retrivePassword (w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		// fmt.Fprintf(w, "{ \"resp_code\":300, error: \"%v\" }", err)
+		// fmt.Fprintf(w, "{ \"resp_code\":400, error: \"%v\" }", err)
 		return false, nil
 	}
 
-		
+
 }
 
 func get_otp_retrivePassword (w http.ResponseWriter, r *http.Request) {
