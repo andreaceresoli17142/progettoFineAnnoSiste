@@ -42,7 +42,7 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Debugln(string(message[:]))
+	// Debugln(string(message[:]))
 
 	userId, err := strconv.Atoi(string(message[:]))
 	if err != nil {
@@ -61,13 +61,15 @@ func initSocket(w http.ResponseWriter, r *http.Request) {
 		socketsAndUsers[userId] = append(socketsAndUsers[userId], c)
 	}
 
-	Debugln(userId)
+	// Debugln(userId)
 
 	// socketsAndUsers[userId] = "ciao"
 
 }
 
 func socketSendNotification(user int, str string) {
+
+	// Warningln("notifying" + strconv.Itoa(user))
 
 	sockArr, found := socketsAndUsers[user]
 

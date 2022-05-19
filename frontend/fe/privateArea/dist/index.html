@@ -12,10 +12,22 @@
     //TODO: add bootstrap toast for errors
     //TODO: redirect user back to login if tokens are expired
 
-    function checkForTokenError(result, success, succArray, fail, failArr) {
-        // console.log("hey im in")
+    function testMw(s, success, succArray, fail, failArr){
 
-      let resultJson = JSON.parse(result)
+      if ( s ) {
+        success(...succArray)
+      } else {
+        fail(...failArr)
+      }
+
+    }
+
+
+
+    function checkForTokenError(result, success, succArray, fail, failArr) {
+      let resultJson
+      try { resultJson = JSON.parse(result)}catch (e) {}
+      console.log(resultJson)
       if ( resultJson.code == 200 ) {
         // console.log("executing")
         success(...succArray);
@@ -23,12 +35,24 @@
       }
 
       if ( resultJson.code == 401 ){
-        verifyAuthToken()
+        console.log("auth token is incorrect")
+        useRft()
+        console.log("recovered new auth token")
         fail(...failArr);
         return
       }
 
       console.log(resultJson.msg)
+      document.getElementById("toastDiv").innerHTML += `
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="toast-header">
+            <strong class="me-auto">Error</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            ${resultJson.msg}
+          </div>
+        </div>`
     }
 
     function getAct(){
@@ -145,29 +169,14 @@
 
       fetch(`http://localhost:8080/getsingleconv?convid=${convId}`, requestOptions)
         .then(response => response.text())
-        .then(result => checkForTokenError( result, function (result){
-
-          let dataArr = JSON.parse(result)
-
-          if ( dataArr.code != 200 ) {
-
-            if ( dataArr.code == 401 ){
-              verifyAuthToken()
-              window.location.reload();
-              return
-            }
-
-            console.log(dataArr.msg)
-            return
-          }
-
+        .then(result => {
           drawChat(result, convId)
           fetch(`http://localhost:8080/msg/read?convid=${convId}`, requestOptions)
             .then(response => response.text())
-            .then(result => checkForTokenError(result, populateMess(result), [result], loadMessages(convId), [convId]))
-            .catch(error => console.log('error', error));
-        }, [result], loadMessages(), []))
-        .catch(error => console.log('error', error));
+            .then(result => populateMess(result))
+            // .catch(error => console.log('error', error));
+        })
+        // .catch(error => console.log('error', error));
 
     }
 
@@ -263,7 +272,7 @@
           <li class="clearfix">
             <div class="message-data align-right">
               <span class="message-data-time" id="time-${messData.Id}" ></span> &nbsp; &nbsp;
-              <span class="message-data-name" id="name-${messData.Id}"></span> <i class="fa fa-circle me"></i>
+              <span class="message-data-name" id="name-${messData.Id}"> </span> <i class="fa fa-circle me"></i>
 
             </div>
             <div class="message other-message float-right" id="mess-${messData.Id}">
@@ -274,7 +283,7 @@
         msgStr = `
         <li>
           <div class="message-data">
-            <span class="message-data-name"><i class="fa fa-circle online"></i> <div id="name-${messData.Id}"> ${messData.Username} </div></span>
+            <span class="message-data-name"><i class="fa fa-circle online"></i> <div id="name-${messData.Id}">  </div></span>
             <span class="message-data-time" id="time-${messData.Id}"></span>
           </div>
           <div class="message my-message" id="mess-${messData.Id}">
@@ -321,7 +330,7 @@
 
       fetch("http://localhost:8080/msg/send", requestOptions)
         .then(response => response.text())
-        .then(result => checkForTokenError(result, () => {} , [], sendMessage(convId), [convId] ) )
+        .then(result => checkForTokenError(result, () => {} , [], () => {} , [] ) )
         .catch(error => console.log('error', error));
     }
 
@@ -360,7 +369,7 @@
               </div>
               </div>`
           });
-        }, [result], getFriendRequests(), [] ))
+        }, [result], () => {} , [] ))
         .catch(error => console.log('error', error));
     }
 
@@ -389,7 +398,7 @@
 
       fetch("http://localhost:8080/freq/makereq", requestOptions)
         .then(response => response.text())
-        .then(result => checkForTokenError(result, () => {}, [], sendFriendRequests(), [] ))
+        .then(result => checkForTokenError(result, () => {}, [], () => {} , [] ))
         .catch(error => console.log('error', error));
     }
 
@@ -430,7 +439,7 @@
             document.getElementById("userbar").innerHTML = ""
             drawConversation()
           }
-        }, [reqid, val], accFriendRequests(reqid, val), [reqid, val]))
+        }, [reqid, val], () => {} , []))
         .catch(error => console.log('error', error));
     }
 
@@ -471,16 +480,10 @@
 
         fetch("http://localhost:8080/group/change", requestOptions)
           .then(response => response.text())
-          .then(result =>  checkForTokenError( result, function (result, gid) {
-            console.log(result)
-            res = JSON.parse(result)
-            if (res.code == '200') {
+          .then(result =>  checkForTokenError( result, function (gid) {
               drawConversation()
               loadMessages("G"+gid)
-              return
-            }
-            console.log(result)
-          }, [result, gid], changeGroupData(gid), [gid]))
+          }, [gid], () => {} , []))
           .catch(error => console.log('error', error));
         return
       }
@@ -505,16 +508,10 @@
 
         fetch("http://localhost:8080/group/change", requestOptions)
           .then(response => response.text())
-          .then(result => checkForTokenError( result, function(result, gid) {
-            console.log(result)
-            res = JSON.parse(result)
-            if (res.code == '200') {
+          .then(result => checkForTokenError( result, function(gid) {
               drawConversation()
               loadMessages("G"+gid)
-              return
-            }
-            console.log(result)
-          }, [result, gid], changeGroupData(gid), [gid] )
+          }, [gid], () => {} , [] )
           ).catch(error => console.log('error', error));
      }
      // you have to declare the file loading
@@ -611,7 +608,7 @@
               </div>
             `
           });
-        }, [result, gid], drawGroupModal(gid), [gid]))
+        }, [result, gid], () => {} , []))
         .catch(error => console.log('error', error));
     }
 
@@ -637,13 +634,9 @@
 
       fetch("http://localhost:8080/group/admin/kick", requestOptions)
         .then(response => response.text())
-        .then(result => checkForTokenError(result, function (result, gid) {
-          res = JSON.parse(result)
-          if (res.code == '200') {
+        .then(result => checkForTokenError(result, function (gid) {
             drawGroupModal(gid)
-          }
-          console.log(res)
-        }, [result, gid], kickUser(gid, userId), [gid, userId]))
+        }, [gid], () => {} , []))
         .catch(error => console.log('error', error));
     }
 
@@ -670,7 +663,7 @@
 
       fetch("http://localhost:8080/group/admin/manage", requestOptions)
         .then(response => response.text())
-        .then(result => checkForTokenError( result, drawGroupModal(gid), [gid], manageAdmin(gid), [gid]))
+        .then(result => checkForTokenError( result, drawGroupModal(gid), [gid], () => {} , []))
         .catch(error => console.log('error', error));
     }
 
@@ -700,7 +693,7 @@
 
       fetch("http://localhost:8080/group/adduser", requestOptions)
         .then(response => response.text())
-        .then(result => checkForTokenError( result, drawGroupModal(gid), [gid], addUserToGroup(gid), [gid] ))
+        .then(result => checkForTokenError( result, drawGroupModal(gid), [gid], () => {} , [] ))
         .catch(error => console.log('error', error));
     }
 
@@ -759,7 +752,7 @@
 
         fetch("http://localhost:8080/group/create", requestOptions)
           .then(response => response.text())
-          .then(result => checkForTokenError( result, drawConversation(), [], newGroupData(), [] )
+          .then(result => checkForTokenError( result, drawConversation(), [], () => {} , [] )
           ).catch(error => console.log('error', error));
         return
       }
@@ -788,7 +781,7 @@
 
         fetch("http://localhost:8080/group/create", requestOptions)
           .then(response => response.text())
-          .then(result => checkForTokenError( result, drawConversation(), [], newGroupData(), [])
+          .then(result => checkForTokenError( result, drawConversation(), [], () => {} , [])
           ).catch(error => console.log('error', error));
      }
      // you have to declare the file loading
@@ -835,9 +828,7 @@
 
       fetch("http://localhost:8080/group/quit", requestOptions)
         .then(response => response.text())
-        .then(result => checkForTokenError( result, function () {
-          window.location.reload();
-        }, [], quitGroup(gid), [gid]))
+        .then(result => checkForTokenError( result, function () {window.location.reload()}, [], () => {} , []))
         .catch(error => console.log('error', error));
     }
 
@@ -871,9 +862,18 @@
           document.getElementById("userDataDiv").innerHTML=`
           <img class="pfp" src="http://localhost/assets/${pfp}" alt="avatar" />
             ${userData.Username}#${userData.Id}
+          <button type="button" class="btn btn-primary" onclick="window.location.reload()"><i class="fa fa-undo"></i></button>
+          <button type="button" class="btn btn-danger" onclick="logout()">Log-out</button>
+
           `
-        }, [result], loadUserData(), []))
+        }, [result], () => {}, []))
         .catch(error => console.log('error', error));
+    }
+
+    function logout(){
+      setCookie( "act", undefined, 0 )
+      setCookie( "rft", undefined, 0 )
+      window.location.replace("/auth/login.html")
     }
 
     function socketConnect(uid) {
@@ -882,6 +882,7 @@
       socket.onopen = function(e) {
         console.log("[open] Connection established");
         console.log("performing handshake");
+        socket.send(uid)
       };
 
       socket.onmessage = function(event) {
@@ -911,19 +912,19 @@
       };
     }
 
-    function handleResultsRft(result){
-			ret = JSON.parse(result)
-			if (ret.code == 200) {
-				setCookie( "act", ret.access_token, ret.act_expt )
-				setCookie( "rft", ret.refresh_token, ret.rft_expt )
-				return
-			}
-			else{
-        setCookie( "act", undefined, 0 )
-				setCookie( "rft", undefined, 0 )
-        window.location.replace("/auth/login.html")
-			}
-		}
+    // function handleResultsRft(result){
+		// 	ret = JSON.parse(result)
+		// 	if (ret.code == 200) {
+		// 		setCookie( "act", ret.access_token, ret.act_expt )
+		// 		setCookie( "rft", ret.refresh_token, ret.rft_expt )
+		// 		return
+		// 	}
+		// 	else{
+    //     setCookie( "act", undefined, 0 )
+		// 		setCookie( "rft", undefined, 0 )
+    //     window.location.replace("/auth/login.html")
+		// 	}
+		// }
 
     function useRft( rft ) {
 			var ret = false;
@@ -939,14 +940,20 @@
 			};
 
 			fetch("http://localhost:8080/auth/userft", requestOptions)
-			.then(response => {
-        let re = JSON.parse(response)
-
-        if (re.code != 200){
-          window.location = '../../auth/login.index'
+			.then(response => response.text())
+			.then(result => {
+        ret = JSON.parse(result)
+        if (ret.code == 200) {
+          setCookie( "act", ret.access_token, ret.act_expt )
+          setCookie( "rft", ret.refresh_token, ret.rft_expt )
+          return
         }
-      })
-			.then(result => handleResultsRft(result));
+        else{
+          setCookie( "act", undefined, 0 )
+          setCookie( "rft", undefined, 0 )
+          window.location.replace("/auth/login.html")
+        }
+      });
 		}
 
 		function verifyAuthToken() {
@@ -980,9 +987,9 @@
       <br>
 
       <div>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
+        <!-- <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
           <i class="fa fa-user" aria-hidden="true"></i>
-        </button>
+        </button> -->
 
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#friendRequestsModal" onclick="getFriendRequests()">
           <i class="fa fa-user-plus" aria-hidden="true"></i>
@@ -1090,6 +1097,8 @@
         </div>
       </div>
     </div>
+
+  <div id="toastDiv"></div>
 
 <!-- partial -->
   <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>

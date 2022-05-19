@@ -1,3 +1,14 @@
+CREATE USER IF NOT EXISTS updater@'%' IDENTIFIED BY 'dgchgcdfghfcg';
+GRANT SELECT ON *.* TO updater@'%' IDENTIFIED BY 'dgchgcdfghfcg';
+GRANT UPDATE ON *.* TO updater@'%' IDENTIFIED BY 'dgchgcdfghfcg';
+
+CREATE USER IF NOT EXISTS inserter@'%' IDENTIFIED BY 'sdjhfuaofydsd';
+GRANT SELECT ON *.* TO inserter@'%' IDENTIFIED BY 'sdjhfuaofydsd';
+GRANT INSERT ON *.* TO inserter@'%' IDENTIFIED BY 'sdjhfuaofydsd';
+
+CREATE USER IF NOT EXISTS selector@'%' IDENTIFIED BY 'hdbsavkgjbbas';
+GRANT SELECT ON *.* TO selector@'%' IDENTIFIED BY 'hdbsavkgjbbas';
+
 DROP DATABASE IF EXISTS instanTex_db;
 
 CREATE DATABASE instanTex_db;

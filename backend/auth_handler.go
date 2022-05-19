@@ -18,7 +18,7 @@ import ( // {{{
 // oauth {{{
 func addState(state string) error {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", insertcred+databaseString)
 
 	if err != nil {
 		return AppendError("addState: ", err)
@@ -37,7 +37,7 @@ func addState(state string) error {
 
 func findState(state string) (string, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return "false", AppendError("findState: ", err)
@@ -61,7 +61,7 @@ func findState(state string) (string, error) {
 
 func remState(state string) error {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", rootcred+databaseString)
 
 	if err != nil {
 		return AppendError("remState: ", err)
@@ -103,7 +103,7 @@ func oauthGetTokenCouple(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get email
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, err)
@@ -188,7 +188,7 @@ func signInOauth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get email
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, err)
@@ -347,7 +347,7 @@ func paleoIdAuth(w http.ResponseWriter, r *http.Request) {
 
 	// pair state with email
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", updatecred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, err)
@@ -443,7 +443,7 @@ func refreshTokenReq(w http.ResponseWriter, r *http.Request) {
 
 func getUserIdFromRefreshToken(refresh_token string) (int, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return -1, AppendError("getUserIdFromRefreshToken: ", err)
@@ -523,7 +523,7 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 		}
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", rootcred+databaseString)
 
 	if err != nil {
 		return "", -1, "", -1, AppendError("generateTokenCouple: ", err)
@@ -567,7 +567,7 @@ func generateTokenCouple(usrId int) (string, int, string, int, error) {
 
 func accessTokenExists(access_token string) (bool, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return false, AppendError("accessTokenExists: ", err)
@@ -591,7 +591,7 @@ func accessTokenExists(access_token string) (bool, error) {
 
 func refreshTokenExists(refresh_token string) (bool, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return false, AppendError("refreshTokenExists: ", err)
@@ -618,7 +618,7 @@ func refreshTokenExists(refresh_token string) (bool, error) {
 // get userid from email {{{
 func getUserId_Email(userEmail string) (int, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return -1, AppendError("getUserId_Email: ", err)
@@ -684,7 +684,7 @@ func getAccessToken_usrid(access_token string) (int, error) {
 
 	Debugln(access_token)
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return -1, AppendError("getAccessToken_usrid: ", err)
@@ -724,7 +724,7 @@ func getAccessToken_usrid(access_token string) (int, error) {
 // login {{{
 func backendLogin(usr_id int, password string) (bool, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return false, AppendError("backendLogin: ", err)
@@ -989,7 +989,7 @@ func changeUserData(w http.ResponseWriter, r *http.Request) {
 
 		q += " WHERE id = " + fmt.Sprintf("%d", usrId) + ";"
 
-		db, err := sql.Open("mysql", databaseString)
+		db, err := sql.Open("mysql", updatecred+databaseString)
 
 		if err != nil {
 			httpError(&w, 500, err)
@@ -1132,7 +1132,7 @@ type otpStruct struct {
 
 func getOtp() (string, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return "", err
@@ -1205,7 +1205,7 @@ func send_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", insertcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, err)
@@ -1290,7 +1290,7 @@ func use_otp_retrivePassword(w http.ResponseWriter, r *http.Request) {
 
 	otp := BearerAuthHeader(r.Header.Get("Authorization"))
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", updatecred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, err)

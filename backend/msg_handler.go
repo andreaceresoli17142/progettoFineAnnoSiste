@@ -43,7 +43,7 @@ func getConversations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -164,7 +164,7 @@ func getSingleConversation(w http.ResponseWriter, r *http.Request) {
 	convId, _ := strconv.Atoi(tmpId[1:])
 	conType := string(tmpId[0])
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -255,7 +255,7 @@ func addToGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", insertcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -343,7 +343,7 @@ func quitGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", rootcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -444,7 +444,7 @@ func changeGroupData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", updatecred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -538,7 +538,7 @@ func changeUserDataEP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", updatecred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -616,7 +616,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", insertcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -698,7 +698,7 @@ func adminManage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", updatecred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -796,7 +796,7 @@ func adminKickUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", rootcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -924,7 +924,7 @@ func getGroupData(w http.ResponseWriter, r *http.Request) {
 		return
 	} // err = json.Unmarshal(b, &resp)
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -1017,7 +1017,7 @@ func getUserDataEp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error: "+err.Error())
@@ -1089,7 +1089,7 @@ func makeFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", insertcred+databaseString)
 
 	if err != nil {
 		httpError(&w, 500, "backend error")
@@ -1186,7 +1186,7 @@ func getFriendRequest(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"usr"`
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	defer db.Close()
 
@@ -1275,7 +1275,7 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", rootcred+databaseString)
 
 	defer db.Close()
 
@@ -1385,7 +1385,7 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.Atoi(resp.Id[len(resp.Id)-1:])
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", insertcred+databaseString)
 
 	defer db.Close()
 
@@ -1475,7 +1475,6 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	httpSuccess(&w, 200, "message sent succesfully")
 }
 
-//? implementare paginazione?
 func getMessages(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("endpoint hit: get messages")
 	v := r.URL.Query()
@@ -1517,7 +1516,7 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.Atoi(convid[len(convid)-1:])
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	defer db.Close()
 

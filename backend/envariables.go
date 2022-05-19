@@ -16,22 +16,28 @@ import ( // {{{
 	"github.com/joho/godotenv"
 ) // }}}
 
-var databaseString string
-var hostSite string
-var sqlServerIp string
-var dbname string
+var (
+	databaseString string
+	hostSite       string
+	sqlServerIp    string
+	dbname         string
+	rootcred       string
+	updatecred     string
+	insertcred     string
+	selectcred     string
 
-var clientId string
-var clientSecret string
-var redirectUri string
+	clientId     string
+	clientSecret string
+	redirectUri  string
 
-var email_email string
-var email_password string
-var email_server string
-var email_port string
+	email_email    string
+	email_password string
+	email_server   string
+	email_port     string
 
-var rsaPrivateKey rsa.PrivateKey
-var rsaPublicKey rsa.PublicKey
+	rsaPrivateKey rsa.PrivateKey
+	rsaPublicKey  rsa.PublicKey
+)
 
 func loadEnv() bool {
 	godotenv.Load(".env")
@@ -57,7 +63,31 @@ func loadEnv() bool {
 		return false
 	}
 
-	databaseString = "root:root@tcp(" + sqlServerIp + ")/" + dbname
+	databaseString = "@tcp(" + sqlServerIp + ")/" + dbname
+
+	rootcred, ok = os.LookupEnv("CRED_ROOT")
+	if !ok {
+		Errorln("missing root credentials")
+		return false
+	}
+
+	updatecred, ok = os.LookupEnv("CRED_UPDATE")
+	if !ok {
+		Errorln("missing update credentials")
+		return false
+	}
+
+	insertcred, ok = os.LookupEnv("CRED_INSERT")
+	if !ok {
+		Errorln("missing insert credentials")
+		return false
+	}
+
+	selectcred, ok = os.LookupEnv("CRED_SELECT")
+	if !ok {
+		Errorln("missing select credentials")
+		return false
+	}
 
 	clientId, ok = os.LookupEnv("CLIENT_ID_OAUTH")
 	if !ok {

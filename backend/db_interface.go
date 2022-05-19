@@ -10,7 +10,7 @@ import (
 
 func getUserId_Usr(username string) (int, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return -1, err
@@ -34,7 +34,7 @@ func getUserId_Usr(username string) (int, error) {
 
 func getUserData(usrId int) (string, string, string, error) {
 
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return "", "", "", err
@@ -57,7 +57,7 @@ func getUserData(usrId int) (string, string, string, error) {
 }
 
 func updateLoginDate(usrId int) error {
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", updatecred+databaseString)
 
 	if err != nil {
 		return err
@@ -109,7 +109,7 @@ func addUser(username string, email string, password string) (bool, error) {
 	}
 
 	// INSERT INTO Users ( username, email, date_of_join, salt, pHash ) VALUES ( "pima", "pippo.mario@gimelli.com", CURRENT_DATE(), 123456, "62d18522b74d75b2a84776c91ba5498377441d4c4af0cea22ca7de9e09475d3a" );
-	db, err := sql.Open("mysql", databaseString)
+	db, err := sql.Open("mysql", selectcred+databaseString)
 
 	if err != nil {
 		return false, err
